@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1:1 Systém — ME & Logistics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --dark:#1F3864; --mid:#2E75B6; --light:#D9E1F2; --accent:#E8A020;
+  --green:#00875A; --green-light:#36B37E; --red:#DE350B; --amber:#FF8B00;
+  --bg:#EEF2F7; --card:#FFFFFF; --text:#0F172A; --text-secondary:#4A6080;
+  --muted:#6B7280; --border:#D5DEE9; --border-strong:#A8BBD0; --purple:#5D3FD3;
+  --bg-input:#F5F8FC;
+  --shadow-sm:0 2px 6px rgba(31,56,100,.06);
+  --shadow-md:0 4px 12px rgba(31,56,100,.08);
+  --shadow-lg:0 12px 32px rgba(31,56,100,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh}
+body{font-family:'IBM Plex Sans','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+
+.header{background:var(--dark);color:#fff;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(31,56,100,.30);position:sticky;top:0;z-index:200;border-bottom:1px solid rgba(0,0,0,.15)}
+.header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--mid) 0%,rgba(0,102,204,.4) 60%,transparent 100%);pointer-events:none}
+.header-left{display:flex;align-items:center;gap:14px}
+.brand-mark{width:40px;height:40px;background:#fff;border-radius:8px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--dark);letter-spacing:-.02em;box-shadow:0 2px 6px rgba(0,0,0,.18);flex-shrink:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.header-left h1{font-size:18px;font-weight:600;letter-spacing:.2px}
+.header-left .sub{font-size:10.5px;opacity:.7;margin-top:3px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+.header-right{display:flex;gap:10px;align-items:center}
+.current-user-badge{font-size:11px;color:#fff;background:rgba(255,255,255,.12);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);font-family:'IBM Plex Mono',monospace}
+.sync-badge{font-size:11px;padding:4px 10px;border-radius:8px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.sync-ok{background:rgba(0,135,90,.25);border:1px solid rgba(54,179,126,.5)}
+.sync-off{background:rgba(222,53,11,.25);border:1px solid rgba(222,53,11,.5)}
+.logout-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer}
+.logout-btn:hover{background:rgba(255,255,255,.22)}
+
+/* LOGIN */
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1B3A5C 0%,#2E6DA4 100%);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:#fff;border-radius:14px;padding:36px 40px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-mark{width:48px;height:48px;margin:0 auto 14px;background:var(--dark);color:#fff;font-size:17px;box-shadow:0 4px 12px rgba(31,56,100,.25)}
+.login-logo h1{font-size:22px;font-weight:800;color:var(--dark);margin-bottom:4px}
+.login-logo p{font-size:12px;color:var(--muted)}
+.login-field{margin-bottom:16px}
+.login-label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.login-input{width:100%;font-size:14px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text)}
+.login-input:focus{outline:none;border-color:var(--mid);background:#fff}
+.login-btn{width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:8px;border:none;background:var(--dark);color:#fff;cursor:pointer;margin-top:8px}
+.login-btn:hover{background:var(--mid)}
+.login-error{background:#FDEDEC;border:1px solid #F1948A;border-radius:8px;padding:10px 14px;font-size:12px;color:#922B21;font-weight:600;margin-bottom:12px;display:none}
+.login-error.show{display:block}
+.login-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}
+
+.wrap{max-width:1100px;margin:0 auto;padding:24px 32px}
+.tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(31,56,100,.04)}
+.tab-group{display:flex;background:#EEF2F7;border-radius:10px;padding:4px;gap:2px}
+.tab{padding:8px 22px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .15s}
+.tab.active{background:linear-gradient(135deg,#1F3864,#2E5090);color:#fff;box-shadow:0 2px 6px rgba(31,56,100,.25)}
+.tab:hover:not(.active){background:#fff;color:var(--dark)}
+
+.intro{background:linear-gradient(135deg,#1F3864 0%,#2E5090 100%);color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:22px;box-shadow:var(--shadow-md);position:relative;overflow:hidden}
+.intro::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.intro h2{font-size:17px;margin-bottom:6px}
+.intro p{font-size:13px;opacity:.9;line-height:1.5}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden;transition:box-shadow .2s ease,transform .2s ease}
+.panel:hover{box-shadow:var(--shadow-md)}
+.panel-head{background:var(--mid);color:#fff;padding:12px 20px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.panel-head.carry{background:#C49A30}
+.panel-head.tasks{background:#2E7D32}
+.panel-body{padding:18px 20px}
+
+.q-block{margin-bottom:16px}
+.q-section{font-size:13px;font-weight:700;color:var(--dark);margin:14px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--light)}
+.q-item{margin-bottom:12px}
+.q-label{font-size:13px;color:var(--text);font-weight:500;margin-bottom:5px;display:block}
+.q-input{width:100%;font-size:13px;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-input);font-family:inherit;resize:vertical;min-height:38px}
+.q-input:focus{outline:none;border-color:var(--mid);background:#fff}
+
+.btn{padding:9px 18px;font-size:13px;font-weight:600;border-radius:8px;border:none;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--dark);color:#fff}
+.btn-primary:hover{background:var(--mid)}
+.btn-ghost{background:var(--bg-input);color:var(--dark);border:1px solid var(--border)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.save-bar{display:flex;gap:10px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.save-status{font-size:12px;color:var(--green);font-weight:600;opacity:0;transition:opacity .2s}
+.save-status.show{opacity:1}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--light);color:var(--dark);font-weight:600;text-align:left;padding:9px 10px;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid var(--border)}
+td input,td select{width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);font-family:inherit}
+td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#fff}
+.row-del{background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0 4px}
+.status-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:8px;font-family:'IBM Plex Mono',monospace}
+.st-done{background:var(--green-light);color:#fff}.st-prog{background:var(--amber);color:#fff}
+.st-block{background:var(--red);color:#fff}.st-new{background:var(--muted);color:#fff}
+
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:24px}
+.sel-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.sel-bar select{font-size:13px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-weight:600;color:var(--dark)}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.meta-grid .q-input{min-height:auto}
+.hist-card{background:var(--bg-input);border-left:3px solid var(--mid);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.hist-card .hc-head{font-size:12px;font-weight:700;color:var(--dark);margin-bottom:6px;display:flex;justify-content:space-between}
+.hist-card .hc-q{font-size:12px;color:var(--text-secondary);margin:3px 0}
+.hist-card .hc-q b{color:var(--text)}
+.priv-note{background:#FFF4E0;border:1px solid #E8C170;border-radius:8px;padding:10px 14px;font-size:12px;color:#7F6000;margin-bottom:16px;line-height:1.5}
+@media(max-width:680px){.wrap{padding:16px}.meta-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="brand-mark login-mark">1:1</div>
+      <h1>1:1 Systém</h1>
+      <p>ME &amp; Logistics · Yanfeng Planá</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-field">
+      <label class="login-label">Uživatel</label>
+      <select class="login-input" id="login-user"></select>
+    </div>
+    <div class="login-field" id="pw-field">
+      <label class="login-label">Heslo</label>
+      <input class="login-input" type="password" id="login-password" placeholder="Heslo" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-field" id="pw-confirm-field" style="display:none">
+      <label class="login-label">Heslo znovu (registrace)</label>
+      <input class="login-input" type="password" id="login-password2" placeholder="Potvrď heslo">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Přihlásit se</button>
+    <div class="login-hint" id="login-hint">Při prvním přihlášení si nastavíš vlastní heslo.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <div class="brand-mark">1:1</div>
+      <div class="brand-text">
+        <h1>1:1 Systém — ME &amp; Logistics</h1>
+        <div class="sub">Příprava · Záznam · Akční úkoly</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="sync-badge sync-off" id="sync-badge">● Offline</span>
+      <span class="current-user-badge" id="user-badge">Nepřihlášen</span>
+      <button class="logout-btn" onclick="doLogout()">Odhlásit</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-group" id="tabs">
+      <button class="tab active" data-tab="prep" onclick="switchTab('prep')">Příprava</button>
+      <button class="tab" data-tab="record" onclick="switchTab('record')">Záznam 1:1</button>
+      <button class="tab" data-tab="tasks" onclick="switchTab('tasks')">Úkoly</button>
+      <button class="tab" data-tab="overview" data-om="1" onclick="switchTab('overview')" style="display:none">Přehled (OM)</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="content"></div>
+</div>
+
+<script>
+// ─── USERS & ROLES (mirrors KPI dashboard) ───────────────────────────
+const USERS = {
+  "Milan Lízala":       { role:"log",   roleType:"log",   label:"Milan Lízala (Logistics Manager)" },
+  "David Varhan":       { role:"eng",   roleType:"eng",   label:"David Varhan (Engineering Manager)" },
+  "Production Manager": { role:"pm",    roleType:"pm",    label:"Production Manager" },
+  "Claudio Molnar":     { role:"coord", roleType:"coord", label:"Claudio (Koordinátor výroby)" },
+  "Nikola Hanusová":    { role:"coord", roleType:"coord", label:"Nikola Hanusová (Koordinátor)" },
+  "Martina Mlejnková":  { role:"coord", roleType:"coord", label:"Martina Mlejnková (Koordinátor)" },
+  "Bohuš Móri":         { role:"coord", roleType:"coord", label:"Bohuš Móri (Koordinátor)" },
+  "Milan Hanus":        { role:"om",    roleType:"om",    label:"Milan Hanus (Operation Manager)" },
+};
+const IS_OM = u => USERS[u] && USERS[u].role === "om";
+
+// ─── QUESTION SETS per roleType ──────────────────────────────────────
+// Unified skeleton: sections 1,2,4,5,6 identical for all roles; section 3 role-specific.
+const C1=["Jak hodnotíš poslední měsíc?",["Co se ti tento měsíc povedlo?","Co se nepovedlo?"]];
+const C2=["Tým",["Kdo se nejvíc posunul?","Kdo potřebuje nejvíc pozornosti?","Máš nějaký personální problém, který bych měl znát?"]];
+const C4=["Leadership",["Kde jsi tento měsíc musel nastavovat očekávání nebo být důslednější?","Co bylo tvoje nejtěžší rozhodnutí tento měsíc?","V jaké situaci ses zachoval jako lídr, na kterého chceš být hrdý?"]];
+const C5=["Podpora",["Co potřebuješ ode mě?","Co bych měl dělat jinak?"]];
+const C6=["Další měsíc",["Jaké jsou tvoje 3 hlavní priority?","Podle čeho poznáme, že byl měsíc úspěšný?"]];
+const SEC3={
+  log:["Logistika",["Jaký je dnes největší logistický problém?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  eng:["Engineering",["Jaký je dnes největší technický problém?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  pm:["Výroba (řízení)",["Jaký je dnes největší problém ve výrobě?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  coord:["Výroba (linka)",["Jaký je dnes největší problém na tvé lince?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+};
+const QSETS = {};
+["log","eng","pm","coord"].forEach(r=>{ QSETS[r]=[C1,C2,SEC3[r],C4,C5,C6]; });
+const ROLE_LABEL = {log:"Logistics Manager",eng:"Engineering Manager",pm:"Production Manager",coord:"Koordinátor výroby"};
+
+// ─── FIREBASE (own namespace 'oneone' in same project) ───────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBpqFi4EC7RW_xYKJg_qqXEhBA3usO4FcU",
+  authDomain: "system-a3b30.firebaseapp.com",
+  databaseURL: "https://system-a3b30-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "system-a3b30",
+  storageBucket: "system-a3b30.firebasestorage.app",
+  messagingSenderId: "884875655584",
+  appId: "1:884875655584:web:0c51781b887d8ade5b0cc5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+const ROOT = 'oneone';
+
+// Fixed login e-mail per user (internal — not real mailboxes, just Auth identity)
+const EMAIL = {
+  "Milan Lízala":        "lizala@1on1.yfai",
+  "David Varhan":        "eng@1on1.yfai",
+  "Production Manager":  "production@1on1.yfai",
+  "Claudio Molnar":      "claudio@1on1.yfai",
+  "Nikola Hanusová":     "nikola@1on1.yfai",
+  "Martina Mlejnková":   "martina@1on1.yfai",
+  "Bohuš Móri":          "bohus@1on1.yfai",
+  "Milan Hanus":         "hanus@1on1.yfai",
+};
+const EMAIL_TO_USER = Object.fromEntries(Object.entries(EMAIL).map(([k,v])=>[v,k]));
+
+let _store = { prep:{}, records:{}, tasks:{}, schedule:{}, auth:{} };
+let currentUser = null;
+
+function userKey(name){ return name.replace(/[.#$\[\]\/]/g,'_'); }
+
+// ─── LOGIN ───────────────────────────────────────────────────────────
+function populateUsers(){
+  const sel = document.getElementById('login-user');
+  sel.innerHTML = '<option value="">— vyber —</option>' +
+    Object.keys(USERS).map(u=>`<option value="${u}">${USERS[u].label}</option>`).join('');
+}
+let _registerMode = false;
+document.getElementById('login-user').addEventListener('change', function(){
+  document.getElementById('login-error').classList.remove('show');
+  resetLoginForm();
+});
+function showRegister(){
+  _registerMode=true;
+  document.getElementById('pw-confirm-field').style.display='block';
+  document.getElementById('login-hint').textContent='První přihlášení — nastav si heslo (min. 6 znaků, zapamatuj si ho).';
+  document.getElementById('login-btn').textContent='Nastavit heslo a přihlásit';
+}
+function resetLoginForm(){
+  _registerMode=false;
+  document.getElementById('pw-confirm-field').style.display='none';
+  document.getElementById('login-hint').textContent='Při prvním přihlášení si nastavíš vlastní heslo.';
+  document.getElementById('login-btn').textContent='Přihlásit se';
+}
+async function doLogin(){
+  const user=document.getElementById('login-user').value;
+  const pw=document.getElementById('login-password').value;
+  const err=document.getElementById('login-error'); err.classList.remove('show');
+  const fail=m=>{err.textContent=m;err.classList.add('show');};
+  if(!user) return fail('Vyber uživatele.');
+  if(!pw) return fail('Zadej heslo.');
+  const email=EMAIL[user];
+  if(!email) return fail('Neznámý uživatel.');
+
+  if(_registerMode){
+    const pw2=document.getElementById('login-password2').value;
+    if(pw.length<6) return fail('Heslo musí mít aspoň 6 znaků.');
+    if(pw!==pw2) return fail('Hesla se neshodují.');
+    try{
+      await auth.createUserWithEmailAndPassword(email,pw);
+      // uid→name mapping (so OM/rules can resolve identity)
+      await db.ref(`${ROOT}/uidmap/${auth.currentUser.uid}`).set(userKey(user));
+      // onAuthStateChanged will enter the app
+    }catch(e){
+      if(e.code==='auth/email-already-in-use'){ return fail('Účet už existuje — přihlas se heslem (ne registrace).'); }
+      return fail('Chyba registrace: '+(e.message||e.code));
+    }
+    return;
+  }
+
+  try{
+    await auth.signInWithEmailAndPassword(email,pw);
+    // onAuthStateChanged handles entering the app
+  }catch(e){
+    if(e.code==='auth/user-not-found'){ showRegister(); return fail('První přihlášení — nastav si heslo níže.'); }
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'){ return fail('Nesprávné heslo.'); }
+    return fail('Chyba přihlášení: '+(e.message||e.code));
+  }
+}
+function enterApp(user){
+  currentUser=user;
+  document.getElementById('login-overlay').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-badge').textContent=USERS[user].label;
+  if(IS_OM(user)){ document.querySelector('[data-om="1"]').style.display='block'; }
+  setupSync();
+  switchTab('prep');
+}
+function doLogout(){
+  auth.signOut().finally(()=>location.reload());
+}
+
+// ─── SYNC ────────────────────────────────────────────────────────────
+function setupSync(){
+  if(IS_OM(currentUser)){
+    // OM reads each section (admin rights enforced by rules)
+    _store={ prep:{}, records:{}, tasks:{}, schedule:{} };
+    ['prep','records','tasks','schedule'].forEach(sec=>{
+      db.ref(`${ROOT}/${sec}`).on('value', snap=>{
+        _store[sec]=snap.val()||{};
+        setSync(true); renderActive();
+      }, e=>{ console.error(e); setSync(false); });
+    });
+  }else{
+    // Subordinate reads only own branch in each section
+    const k=userKey(currentUser);
+    _store={ prep:{}, records:{}, tasks:{} };
+    ['prep','records','tasks'].forEach(sec=>{
+      db.ref(`${ROOT}/${sec}/${k}`).on('value', snap=>{
+        _store[sec][k]=snap.val()|| (sec==='tasks'?[]:{});
+        setSync(true); renderActive();
+      }, e=>{ console.error(e); setSync(false); });
+    });
+  }
+}
+function setSync(ok){
+  const b=document.getElementById('sync-badge');
+  b.className='sync-badge '+(ok?'sync-ok':'sync-off');
+  b.textContent=ok?'● Online':'● Offline';
+}
+function persist(path,val){
+  db.ref(`${ROOT}/${path}`).set(val).catch(e=>alert('Chyba uložení: '+e.message));
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────
+let activeTab='prep';
+function switchTab(t){
+  activeTab=t;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  renderActive();
+}
+function renderActive(){
+  if(!currentUser) return;
+  const c=document.getElementById('content');
+  if(activeTab==='prep') c.innerHTML=renderPrep();
+  else if(activeTab==='record') c.innerHTML=renderRecord();
+  else if(activeTab==='tasks') c.innerHTML=renderTasks();
+  else if(activeTab==='overview') c.innerHTML=renderOverview();
+}
+
+// who am I viewing? OM can pick a subordinate
+let _viewUser=null;
+function targetUser(){
+  if(IS_OM(currentUser) && _viewUser) return _viewUser;
+  return currentUser;
+}
+function omSelector(){
+  if(!IS_OM(currentUser)) return '';
+  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
+  return `<div class="sel-bar"><label style="font-size:12px;font-weight:600;color:var(--muted)">Zobrazit podřízeného:</label>
+    <select onchange="_viewUser=this.value;renderActive()">
+      <option value="">— vyber —</option>
+      ${subs.map(u=>`<option value="${u}" ${_viewUser===u?'selected':''}>${USERS[u].label}</option>`).join('')}
+    </select></div>`;
+}
+
+function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// ─── PREP TAB ────────────────────────────────────────────────────────
+function renderPrep(){
+  const tu=targetUser();
+  if(IS_OM(currentUser) && !tu) return omSelector()+`<div class="empty">Vyber podřízeného pro zobrazení jeho přípravy.</div>`;
+  const rt=USERS[tu].roleType;
+  if(!QSETS[rt]) return omSelector()+`<div class="empty">Pro tuto roli není definovaná příprava.</div>`;
+  const month=curMonth();
+  const saved=(_store.prep[userKey(tu)]&&_store.prep[userKey(tu)][month])||{};
+  const readOnly=IS_OM(currentUser)&&tu!==currentUser;
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Příprava na 1:1 — ${USERS[tu].label}</h2>
+    <p>Vyplň PŘED schůzkou. Promysli si otázky a napiš si konkrétní body (jména, čísla, situace). Měsíc: <b>${month}</b></p></div>`;
+  if(readOnly) html+=`<div class="priv-note">Prohlížíš přípravu podřízeného (jen pro čtení).</div>`;
+  html+=`<div class="panel"><div class="panel-head">K zamyšlení</div><div class="panel-body">`;
+  QSETS[rt].forEach((sec,si)=>{
+    html+=`<div class="q-section">${si+1}. ${sec[0]}</div>`;
+    sec[1].forEach((q,qi)=>{
+      const id=`p_${si}_${qi}`;
+      html+=`<div class="q-item"><label class="q-label">${q}</label>
+        <textarea class="q-input" id="${id}" ${readOnly?'disabled':''}>${esc(saved[id]||'')}</textarea></div>`;
+    });
+  });
+  html+=`<div class="q-section">Vlastní témata</div>
+    <div class="q-item"><textarea class="q-input" id="p_own" ${readOnly?'disabled':''} placeholder="Co chci tento měsíc probrat navíc...">${esc(saved.p_own||'')}</textarea></div>`;
+  if(!readOnly){
+    html+=`<div class="save-bar"><button class="btn btn-primary" onclick="savePrep('${rt}')">Uložit přípravu</button>
+      <span class="save-status" id="prep-saved">✓ Uloženo</span></div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+function savePrep(rt){
+  const tu=targetUser(); const month=curMonth(); const data={};
+  QSETS[rt].forEach((sec,si)=>sec[1].forEach((q,qi)=>{const id=`p_${si}_${qi}`;data[id]=val(id);}));
+  data.p_own=val('p_own'); data._updated=new Date().toISOString();
+  const cur=_store.prep[userKey(tu)]||{};
+  cur[month]=data;
+  persist(`prep/${userKey(tu)}`,cur);
+  flash('prep-saved');
+}
+
+// ─── RECORD TAB (notes from the meeting) ─────────────────────────────
+function renderRecord(){
+  const tu=targetUser();
+  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const rt=USERS[tu].roleType; const month=curMonth();
+  const saved=(_store.records[userKey(tu)]&&_store.records[userKey(tu)][month])||{};
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Záznam 1:1 — ${USERS[tu].label}</h2>
+    <p>Poznámky z průběhu schůzky. Měsíc: <b>${month}</b>. Citlivé hodnocení lidí (People Review) sem nepatří — to zůstává v Excelu.</p></div>`;
+  // carry-over
+  html+=`<div class="panel"><div class="panel-head carry">Z minula — co jsme dohodli a splnilo se?</div><div class="panel-body">
+    <textarea class="q-input" id="r_carry" style="min-height:70px" placeholder="Kontrola úkolů z minulého měsíce...">${esc(saved.r_carry||'')}</textarea></div></div>`;
+  // per-section notes
+  html+=`<div class="panel"><div class="panel-head">Poznámky k tématům</div><div class="panel-body">`;
+  QSETS[rt].forEach((sec,si)=>{
+    html+=`<div class="q-item"><label class="q-label"><b>${si+1}. ${sec[0]}</b></label>
+      <textarea class="q-input" id="r_${si}">${esc(saved['r_'+si]||'')}</textarea></div>`;
+  });
+  html+=`<div class="save-bar"><button class="btn btn-primary" onclick="saveRecord('${rt}')">Uložit záznam</button>
+    <span class="save-status" id="rec-saved">✓ Uloženo</span></div></div></div>`;
+  return html;
+}
+function saveRecord(rt){
+  const tu=targetUser(); const month=curMonth(); const data={r_carry:val('r_carry')};
+  QSETS[rt].forEach((sec,si)=>data['r_'+si]=val('r_'+si));
+  data._updated=new Date().toISOString(); data._by=currentUser;
+  const cur=_store.records[userKey(tu)]||{}; cur[month]=data;
+  persist(`records/${userKey(tu)}`,cur);
+  flash('rec-saved');
+}
+
+// ─── TASKS TAB ───────────────────────────────────────────────────────
+function renderTasks(){
+  const tu=targetUser();
+  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const list=(_store.tasks[userKey(tu)]||[]).filter(Boolean);
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Akční úkoly — ${USERS[tu].label}</h2>
+    <p>Co bylo dohodnuto. Max. doporučeno 5 aktivních. Aktualizuj stav průběžně.</p></div>`;
+  html+=`<div class="panel"><div class="panel-head tasks">Úkoly <button class="btn btn-ghost btn-sm" onclick="addTask()">+ Přidat úkol</button></div><div class="panel-body">`;
+  if(!list.length){ html+=`<div class="empty">Zatím žádné úkoly. Přidej první.</div>`; }
+  else{
+    html+=`<table><thead><tr><th style="width:34%">Úkol</th><th>Owner</th><th>Termín</th><th>Stav</th><th></th></tr></thead><tbody>`;
+    list.forEach((t,i)=>{
+      html+=`<tr>
+        <td><input value="${escA(t.title||'')}" onchange="updTask(${i},'title',this.value)"></td>
+        <td><input value="${escA(t.owner||'')}" onchange="updTask(${i},'owner',this.value)"></td>
+        <td><input type="date" value="${escA(t.due||'')}" onchange="updTask(${i},'due',this.value)"></td>
+        <td><select onchange="updTask(${i},'status',this.value)">
+          ${['Nezahájeno','Probíhá','Hotovo','Blokováno'].map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}
+        </select></td>
+        <td><button class="row-del" onclick="delTask(${i})" title="Smazat">×</button></td>
+      </tr>`;
+    });
+    html+=`</tbody></table>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+function tasksOf(tu){ return (_store.tasks[userKey(tu)]||[]).filter(Boolean); }
+function addTask(){
+  const tu=targetUser(); const list=tasksOf(tu);
+  list.push({id:'t'+Date.now(),title:'',owner:USERS[tu]&&!IS_OM(tu)?tu:'',due:'',status:'Nezahájeno',createdAt:new Date().toISOString()});
+  persist(`tasks/${userKey(tu)}`,list);
+}
+function updTask(i,k,v){ const tu=targetUser(); const list=tasksOf(tu); if(!list[i])return; list[i][k]=v; persist(`tasks/${userKey(tu)}`,list); }
+function delTask(i){ const tu=targetUser(); const list=tasksOf(tu); list.splice(i,1); persist(`tasks/${userKey(tu)}`,list); }
+
+// ─── OVERVIEW (OM only) ──────────────────────────────────────────────
+function renderOverview(){
+  if(!IS_OM(currentUser)) return `<div class="empty">Nedostupné.</div>`;
+  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
+  let html=`<div class="intro"><h2>Přehled — plán a stav 1:1</h2>
+    <p>Tvůj pohled na všechny. Plán schůzek, otevřené úkoly a připravenost na jednom místě.</p></div>`;
+
+  // ── PLÁN 1:1 ──
+  html+=`<div class="panel"><div class="panel-head">Plán 1:1 — kdy s kým</div><div class="panel-body">`;
+  html+=`<table><thead><tr><th>Osoba</th><th>Poslední 1:1</th><th>Příští (návrh / vlastní)</th><th>Stav</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    const last=lastMeetingMonth(u);                 // 'YYYY-MM' nebo null
+    const sched=(_store.schedule&&_store.schedule[userKey(u)])||{};
+    const suggested=nextSuggestion(last);           // 'YYYY-MM-DD'
+    const custom=sched.next||'';                    // ruční datum
+    const effective=custom||suggested;
+    const st=scheduleStatus(effective);
+    html+=`<tr>
+      <td><b>${u.split(' ')[0]}</b><div style="font-size:11px;color:var(--muted)">${ROLE_LABEL[USERS[u].roleType]||''}</div></td>
+      <td>${last?fmtMonth(last):'<span style="color:var(--muted)">—</span>'}</td>
+      <td><input type="date" value="${custom}" placeholder="${suggested}" onchange="setNext('${userKey(u)}',this.value)" style="max-width:160px">
+          ${!custom&&suggested?`<div style="font-size:11px;color:var(--muted)">návrh: ${fmtDate(suggested)}</div>`:''}</td>
+      <td>${st.pill}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">„Poslední 1:1" se počítá automaticky z vyplněných záznamů. „Příští" navrhne systém (poslední + 1 měsíc) — můžeš přepsat vlastním datem.</div>`;
+  html+=`</div></div>`;
+
+  // ── OTEVŘENÉ ÚKOLY ──
+  html+=`<div class="panel"><div class="panel-head">Otevřené úkoly</div><div class="panel-body">`;
+  let any=false;
+  html+=`<table><thead><tr><th>Osoba</th><th style="width:34%">Úkol</th><th>Termín</th><th>Stav</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    tasksOf(u).filter(t=>t.status!=='Hotovo'&&t.title).forEach(t=>{
+      any=true;
+      html+=`<tr><td><b>${u.split(' ')[0]}</b></td><td>${esc(t.title)}</td>
+        <td>${t.due||'—'}</td><td>${statusPill(t.status)}</td></tr>`;
+    });
+  });
+  html+=`</tbody></table>`;
+  if(!any) html+=`<div class="empty">Žádné otevřené úkoly.</div>`;
+  html+=`</div></div>`;
+
+  // ── PŘIPRAVENOST ──
+  const month=curMonth();
+  html+=`<div class="panel"><div class="panel-head">Připravenost na tento měsíc (${fmtMonth(month)})</div><div class="panel-body">
+    <table><thead><tr><th>Osoba</th><th>Příprava</th><th>Záznam</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    const p=_store.prep[userKey(u)]&&_store.prep[userKey(u)][month];
+    const r=_store.records[userKey(u)]&&_store.records[userKey(u)][month];
+    html+=`<tr><td><b>${u.split(' ')[0]}</b></td>
+      <td>${p?'<span class="status-pill st-done">Vyplněno</span>':'<span class="status-pill st-new">Čeká</span>'}</td>
+      <td>${r?'<span class="status-pill st-done">Hotovo</span>':'<span class="status-pill st-new">—</span>'}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  return html;
+}
+
+// ── schedule helpers ──
+function lastMeetingMonth(u){
+  const rec=_store.records[userKey(u)];
+  if(!rec) return null;
+  const months=Object.keys(rec).filter(m=>/^\d{4}-\d{2}$/.test(m)).sort();
+  return months.length?months[months.length-1]:null;
+}
+function nextSuggestion(lastMonth){
+  // base = last meeting month, else current month; +1 month, day 1
+  let y,m;
+  if(lastMonth){ [y,m]=lastMonth.split('-').map(Number); }
+  else { const d=new Date(); y=d.getFullYear(); m=d.getMonth()+1; }
+  m+=1; if(m>12){m=1;y+=1;}
+  return `${y}-${String(m).padStart(2,'0')}-01`;
+}
+function scheduleStatus(dateStr){
+  if(!dateStr) return {pill:'<span class="status-pill st-new">—</span>'};
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(dateStr+'T00:00:00');
+  const days=Math.round((d-today)/86400000);
+  if(days<0) return {pill:'<span class="status-pill st-block">Po termínu</span>'};
+  if(days<=7) return {pill:'<span class="status-pill st-prog">Blíží se</span>'};
+  return {pill:'<span class="status-pill st-done">V termínu</span>'};
+}
+function setNext(personKey,dateStr){
+  const cur=(_store.schedule&&_store.schedule[personKey])||{};
+  cur.next=dateStr;
+  persist(`schedule/${personKey}`,cur);
+}
+function fmtMonth(ym){ const [y,m]=ym.split('-'); return `${m}/${y}`; }
+function fmtDate(d){ const [y,m,da]=d.split('-'); return `${da}.${m}.${y}`; }
+
+// ─── helpers ─────────────────────────────────────────────────────────
+function statusPill(s){
+  const m={'Hotovo':'st-done','Probíhá':'st-prog','Blokováno':'st-block','Nezahájeno':'st-new'};
+  return `<span class="status-pill ${m[s]||'st-new'}">${s}</span>`;
+}
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escA(s){ return esc(s).replace(/"/g,'&quot;'); }
+function flash(id){ const e=document.getElementById(id); if(!e)return; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),1500); }
+
+// ─── BOOT ────────────────────────────────────────────────────────────
+populateUsers();
+// Firebase keeps the session; restore identity from the signed-in user.
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    let name=EMAIL_TO_USER[user.email];
+    if(!name){
+      // fallback: resolve via uidmap (stores userKey)
+      try{
+        const s=await db.ref(`${ROOT}/uidmap/${user.uid}`).get();
+        if(s.exists()){ const pk=s.val(); name=Object.keys(USERS).find(n=>userKey(n)===pk); }
+      }catch{}
+    }
+    if(name && USERS[name]){ enterApp(name); return; }
+  }
+  // not signed in → show login
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('app').style.display='none';
+});
+</script>
+</body>
+</html>
