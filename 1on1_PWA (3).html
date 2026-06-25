@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>1:1 Systém — Yanfeng Planá</title>
+
+<!-- ─── PWA: instalovatelnost jako jedna ikona (vše inline) ───────────── -->
+<meta name="theme-color" content="#1F3864">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="1:1 Systém">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20rx='40'%20fill='%231F3864'/%3E%3Ctext%20x='90'%20y='118'%20font-family='monospace'%20font-size='74'%20font-weight='700'%20fill='%23ffffff'%20text-anchor='middle'%3E1:1%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='64'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%231F3864'/%3E%3Ctext%20x='32'%20y='42'%20font-family='monospace'%20font-size='26'%20font-weight='700'%20fill='%23ffffff'%20text-anchor='middle'%3E1:1%3C/text%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --dark:#1F3864; --mid:#2E75B6; --light:#D9E1F2; --accent:#E8A020;
+  --green:#00875A; --green-light:#36B37E; --red:#DE350B; --amber:#FF8B00;
+  --bg:#EEF2F7; --card:#FFFFFF; --text:#0F172A; --text-secondary:#4A6080;
+  --muted:#6B7280; --border:#D5DEE9; --border-strong:#A8BBD0; --purple:#5D3FD3;
+  --bg-input:#F5F8FC;
+  --shadow-sm:0 2px 6px rgba(31,56,100,.06);
+  --shadow-md:0 4px 12px rgba(31,56,100,.08);
+  --shadow-lg:0 12px 32px rgba(31,56,100,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh}
+body{font-family:'IBM Plex Sans','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+
+.header{background:var(--dark);color:#fff;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(31,56,100,.30);position:sticky;top:0;z-index:200;border-bottom:1px solid rgba(0,0,0,.15)}
+.header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--mid) 0%,rgba(0,102,204,.4) 60%,transparent 100%);pointer-events:none}
+.header-left{display:flex;align-items:center;gap:14px}
+.brand-mark{width:40px;height:40px;background:#fff;border-radius:8px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--dark);letter-spacing:-.02em;box-shadow:0 2px 6px rgba(0,0,0,.18);flex-shrink:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.header-left h1{font-size:18px;font-weight:600;letter-spacing:.2px}
+.header-left .sub{font-size:10.5px;opacity:.7;margin-top:3px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em}
+.header-right{display:flex;gap:10px;align-items:center}
+.current-user-badge{font-size:11px;color:#fff;background:rgba(255,255,255,.12);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);font-family:'IBM Plex Mono',monospace}
+.sync-badge{font-size:11px;padding:4px 10px;border-radius:8px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.sync-ok{background:rgba(0,135,90,.25);border:1px solid rgba(54,179,126,.5)}
+.sync-off{background:rgba(222,53,11,.25);border:1px solid rgba(222,53,11,.5)}
+.logout-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer}
+.logout-btn:hover{background:rgba(255,255,255,.22)}
+.install-btn{background:var(--accent);border:none;color:#1a1300;font-size:11px;font-weight:700;padding:5px 12px;border-radius:7px;cursor:pointer;display:none}
+.install-btn:hover{filter:brightness(1.06)}
+
+/* LOGIN */
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#1B3A5C 0%,#2E6DA4 100%);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:#fff;border-radius:14px;padding:36px 40px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-mark{width:48px;height:48px;margin:0 auto 14px;background:var(--dark);color:#fff;font-size:17px;box-shadow:0 4px 12px rgba(31,56,100,.25)}
+.login-logo h1{font-size:22px;font-weight:800;color:var(--dark);margin-bottom:4px}
+.login-logo p{font-size:12px;color:var(--muted)}
+.login-field{margin-bottom:16px}
+.login-label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.login-input{width:100%;font-size:14px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text)}
+.login-input:focus{outline:none;border-color:var(--mid);background:#fff}
+.login-btn{width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:8px;border:none;background:var(--dark);color:#fff;cursor:pointer;margin-top:8px}
+.login-btn:hover{background:var(--mid)}
+.login-error{background:#FDEDEC;border:1px solid #F1948A;border-radius:8px;padding:10px 14px;font-size:12px;color:#922B21;font-weight:600;margin-bottom:12px;display:none}
+.login-error.show{display:block}
+.login-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}
+
+.wrap{max-width:1100px;margin:0 auto;padding:24px 32px}
+.tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(31,56,100,.04)}
+.tab-group{display:flex;background:#EEF2F7;border-radius:10px;padding:4px;gap:2px}
+.tab{padding:8px 22px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all .15s}
+.tab.active{background:linear-gradient(135deg,#1F3864,#2E5090);color:#fff;box-shadow:0 2px 6px rgba(31,56,100,.25)}
+.tab:hover:not(.active){background:#fff;color:var(--dark)}
+
+.intro{background:linear-gradient(135deg,#1F3864 0%,#2E5090 100%);color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:22px;box-shadow:var(--shadow-md);position:relative;overflow:hidden}
+.intro::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.intro h2{font-size:17px;margin-bottom:6px}
+.intro p{font-size:13px;opacity:.9;line-height:1.5}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden;transition:box-shadow .2s ease,transform .2s ease}
+.panel:hover{box-shadow:var(--shadow-md)}
+.panel-head{background:var(--mid);color:#fff;padding:12px 20px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.panel-head.carry{background:#C49A30}
+.panel-head.tasks{background:#2E7D32}
+.panel-body{padding:18px 20px}
+
+.q-block{margin-bottom:16px}
+/* decent single-color section */
+.sec{margin:20px 0 4px;padding-top:4px}
+.sec:first-of-type{margin-top:6px}
+.sec-head{display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--border)}
+.sec-ic{width:24px;height:24px;border-radius:7px;background:var(--light);display:grid;place-items:center;flex-shrink:0}
+.sec-ic svg{width:14px;height:14px;stroke:var(--dark);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sec-title{font-size:13.5px;font-weight:700;color:var(--dark)}
+.sec-num{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--mid);margin-right:5px}
+.q-item{margin-bottom:12px}
+.q-label{font-size:13px;color:var(--text);font-weight:500;margin-bottom:5px;display:block}
+.q-input{width:100%;font-size:13px;padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg-input);font-family:inherit;resize:vertical;min-height:40px;transition:border-color .15s,box-shadow .15s}
+.q-input:focus{outline:none;border-color:var(--mid);background:#fff;box-shadow:0 0 0 3px rgba(46,117,182,.12)}
+.q-input:disabled{background:var(--bg-input);color:var(--text-secondary)}
+
+.btn{padding:9px 18px;font-size:13px;font-weight:600;border-radius:8px;border:none;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--dark);color:#fff}
+.btn-primary:hover{background:var(--mid)}
+.btn-ghost{background:var(--bg-input);color:var(--dark);border:1px solid var(--border)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.save-bar{display:flex;gap:10px;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.save-status{font-size:12px;color:var(--green);font-weight:600;opacity:0;transition:opacity .2s}
+.save-status.show{opacity:1}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--light);color:var(--dark);font-weight:600;text-align:left;padding:9px 10px;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid var(--border)}
+td input,td select{width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);font-family:inherit}
+td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#fff}
+.row-del{background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0 4px}
+.status-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:8px;font-family:'IBM Plex Mono',monospace}
+.st-done{background:var(--green-light);color:#fff}.st-prog{background:var(--amber);color:#fff}
+.st-block{background:var(--red);color:#fff}.st-new{background:var(--muted);color:#fff}
+
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:24px}
+.sel-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.sel-bar select{font-size:13px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-weight:600;color:var(--dark)}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.meta-grid .q-input{min-height:auto}
+.hist-card{background:var(--bg-input);border-left:3px solid var(--mid);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.hist-card .hc-head{font-size:12px;font-weight:700;color:var(--dark);margin-bottom:6px;display:flex;justify-content:space-between}
+.hist-card .hc-q{font-size:12px;color:var(--text-secondary);margin:3px 0}
+.hist-card .hc-q b{color:var(--text)}
+.priv-note{background:#FFF4E0;border:1px solid #E8C170;border-radius:8px;padding:10px 14px;font-size:12px;color:#7F6000;margin-bottom:16px;line-height:1.5}
+
+/* PWA install hint pruh (mobil) */
+.ios-hint{display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:6000;background:var(--dark);color:#fff;border-radius:12px;padding:12px 16px;font-size:12.5px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.ios-hint b{color:var(--accent)}
+.ios-hint .x{position:absolute;top:8px;right:12px;cursor:pointer;opacity:.7;font-size:16px}
+
+@media(max-width:680px){.wrap{padding:16px}.meta-grid{grid-template-columns:1fr}.header{padding:12px 16px}.tab-bar{padding:10px 16px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="brand-mark login-mark">1:1</div>
+      <h1>1:1 Systém</h1>
+      <p>Yanfeng Planá</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-field">
+      <label class="login-label">E-mail (přihlašovací)</label>
+      <input class="login-input" type="email" id="login-user" placeholder="jmeno@1on1.yfai" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-field" id="pw-field">
+      <label class="login-label">Heslo</label>
+      <input class="login-input" type="password" id="login-password" placeholder="Heslo" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-field" id="pw-confirm-field" style="display:none">
+      <label class="login-label">Heslo znovu (registrace)</label>
+      <input class="login-input" type="password" id="login-password2" placeholder="Potvrď heslo">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Přihlásit se</button>
+    <div class="login-hint" id="login-hint">Při prvním přihlášení si nastavíš vlastní heslo.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <div class="brand-mark">1:1</div>
+      <div class="brand-text">
+        <h1>1:1 Systém — Yanfeng Planá</h1>
+        <div class="sub">Příprava · Záznam · Akční úkoly</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="install-btn" id="install-btn" onclick="doInstall()">⤓ Nainstalovat</button>
+      <span class="sync-badge sync-off" id="sync-badge">● Offline</span>
+      <span class="current-user-badge" id="user-badge">Nepřihlášen</span>
+      <button class="logout-btn" onclick="doLogout()">Odhlásit</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-group" id="tabs">
+      <button class="tab active" data-tab="prep" onclick="switchTab('prep')">Příprava</button>
+      <button class="tab" data-tab="record" data-om="1" onclick="switchTab('record')" style="display:none">Záznam 1:1</button>
+      <button class="tab" data-tab="tasks" onclick="switchTab('tasks')">Úkoly</button>
+      <button class="tab" data-tab="overview" data-om="1" onclick="switchTab('overview')" style="display:none">Přehled (OM)</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="content"></div>
+</div>
+
+<!-- iOS install hint (Safari nemá beforeinstallprompt) -->
+<div class="ios-hint" id="ios-hint">
+  <span class="x" onclick="document.getElementById('ios-hint').style.display='none'">×</span>
+  Nainstaluj jako appku: ťukni na <b>Sdílet</b> a pak <b>„Přidat na plochu"</b>.
+</div>
+
+<script>
+// ─── USERS & ROLES (mirrors KPI dashboard) ───────────────────────────
+const USERS = {
+  "Milan Lízala":       { role:"log",   roleType:"log",   g:"m", label:"Milan Lízala (Logistics Manager)" },
+  "David Varhan":       { role:"eng",   roleType:"eng",   g:"m", label:"David Varhan (Engineering Manager)" },
+  "Production Manager": { role:"pm",    roleType:"pm",    g:"m", label:"Production Manager" },
+  "Nikola Hanusová":    { role:"coord", roleType:"coord", g:"f", label:"Nikola Hanusová (Koordinátor)" },
+  "Martina Mlejnková":  { role:"coord", roleType:"coord", g:"f", label:"Martina Mlejnková (Koordinátor)" },
+  "Bohuš Móri":         { role:"coord", roleType:"coord", g:"m", label:"Bohuš Móri (Koordinátor)" },
+  "Roman Zúbek":        { role:"qm",    roleType:"qm",    g:"m", label:"Roman Zúbek (Quality Manager)" },
+  "Martin Slabý":       { role:"qcoord",roleType:"qcoord",g:"m", label:"Martin Slabý (Quality Coordinator)" },
+  "Hana Škodová":       { role:"ci",    roleType:"ci",    g:"f", label:"Hana Škodová (CI Professional)" },
+  "Milan Hanus":        { role:"om",    roleType:"om",    g:"m", label:"Milan Hanus (Operation Manager)" },
+};
+const IS_OM = u => USERS[u] && USERS[u].role === "om";
+// Genderize question text: {a} → female "a"/male ""; {á} → "á"/"ý"-tail already in word.
+function gtext(s,who){
+  const f = USERS[who] && USERS[who].g === "f";
+  return s
+    .replace(/\{a\}/g, f ? "a" : "")
+    .replace(/hrdý\{á\}/g, f ? "hrdá" : "hrdý")
+    .replace(/\{á\}/g, f ? "á" : "ý");
+}
+
+// ─── QUESTION SETS per roleType ──────────────────────────────────────
+const C1=["Jak hodnotíš poslední měsíc?",["Co se ti tento měsíc povedlo?","Co se nepovedlo?"]];
+const C2=["Tým",["Kdo se nejvíc posunul?","Kdo potřebuje nejvíc pozornosti?","Máš nějaký personální problém, který bych měl znát?"]];
+const C4=["Leadership",["Kde jsi tento měsíc musel{a} nastavovat očekávání nebo být důslednější?","Co bylo tvoje nejtěžší rozhodnutí tento měsíc?","Ve které situaci ses zachoval{a} jako lídr, na kterého můžeš být hrdý{á}?"]];
+const C5=["Podpora",["Co potřebuješ ode mě?","Co bych měl dělat jinak?"]];
+const C6=["Další měsíc",["Jaké jsou tvoje 3 hlavní priority?","Podle čeho poznáme, že byl měsíc úspěšný?"]];
+const SEC3={
+  log:["Logistika",["Jaký je dnes největší logistický problém?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  eng:["Engineering",["Jaký je dnes největší technický problém?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  pm:["Výroba (řízení)",["Jaký je dnes největší problém ve výrobě?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  coord:["Výroba (linka)",["Jaký je dnes největší problém na tvé lince?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  qm:["Kvalita",["Jaký je dnes největší problém v kvalitě?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  qcoord:["Kvalita (proces / linka)",["Jaký je dnes největší problém v kvalitě na tvém úseku?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+  ci:["Continuous Improvement",["Jaká je dnes největší příležitost ke zlepšení?","Co konkrétně uděláš v příštích 30 dnech?","Co se opakuje a jak tomu příště zabráníme?"]],
+};
+const QSETS = {};
+["log","eng","pm","coord","qm","qcoord","ci"].forEach(r=>{ QSETS[r]=[C1,C2,SEC3[r],C4,C5,C6]; });
+
+// Visual identity per section: color + icon (SVG path). Section 3 is role-specific
+// (Logistika/Engineering/Výroba/Kvalita/CI) → all share the "expertise" look.
+const ICON={
+  chart:'<path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/>',
+  people:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  compass:'<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  hand:'<path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  arrow:'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  spark:'<path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24"/>',
+};
+// section title → icon (single navy color across all)
+const SECTION_META={
+  "Jak hodnotíš poslední měsíc?":{ic:'chart',c:'blue'},
+  "Tým":{ic:'people',c:'violet'},
+  "Leadership":{ic:'compass',c:'green'},
+  "Podpora":{ic:'hand',c:'teal'},
+  "Další měsíc":{ic:'arrow',c:'indigo'},
+  // section 3 (role-specific)
+  "Logistika":{ic:'gear',c:'orange'},
+  "Engineering":{ic:'gear',c:'orange'},
+  "Výroba (řízení)":{ic:'gear',c:'orange'},
+  "Výroba (linka)":{ic:'gear',c:'orange'},
+  "Kvalita":{ic:'gear',c:'orange'},
+  "Kvalita (proces / linka)":{ic:'gear',c:'orange'},
+  "Continuous Improvement":{ic:'spark',c:'orange'},
+};
+function secOpen(title,num){
+  const m=SECTION_META[title]||{ic:'gear'};
+  const svg=ICON[m.ic]||ICON.gear;
+  return `<div class="sec"><div class="sec-head">
+    <div class="sec-ic"><svg viewBox="0 0 24 24">${svg}</svg></div>
+    <div class="sec-title">${num?`<span class="sec-num">${num}</span>`:''}${title}</div></div>`;
+}
+const ROLE_LABEL = {log:"Logistics Manager",eng:"Engineering Manager",pm:"Production Manager",coord:"Koordinátor výroby",qm:"Quality Manager",qcoord:"Quality Coordinator",ci:"CI Professional"};
+
+// ─── FIREBASE (own namespace 'oneone' in same project) ───────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBpqFi4EC7RW_xYKJg_qqXEhBA3usO4FcU",
+  authDomain: "system-a3b30.firebaseapp.com",
+  databaseURL: "https://system-a3b30-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "system-a3b30",
+  storageBucket: "system-a3b30.firebasestorage.app",
+  messagingSenderId: "884875655584",
+  appId: "1:884875655584:web:0c51781b887d8ade5b0cc5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+const ROOT = 'oneone';
+
+const EMAIL = {
+  "Milan Lízala":        "lizala@1on1.yfai",
+  "David Varhan":        "eng@1on1.yfai",
+  "Production Manager":  "production@1on1.yfai",
+  "Nikola Hanusová":     "nikola@1on1.yfai",
+  "Martina Mlejnková":   "martina@1on1.yfai",
+  "Bohuš Móri":          "bohus@1on1.yfai",
+  "Roman Zúbek":         "zubek@1on1.yfai",
+  "Martin Slabý":        "slaby@1on1.yfai",
+  "Hana Škodová":        "skodova@1on1.yfai",
+  "Milan Hanus":         "hanus@1on1.yfai",
+};
+const EMAIL_TO_USER = Object.fromEntries(Object.entries(EMAIL).map(([k,v])=>[v,k]));
+
+let _store = { prep:{}, records:{}, tasks:{}, schedule:{}, auth:{} };
+let currentUser = null;
+
+function userKey(name){ return name.replace(/[.#$\[\]\/]/g,'_'); }
+
+// ─── LOGIN ───────────────────────────────────────────────────────────
+let _registerMode = false;
+document.getElementById('login-user').addEventListener('input', function(){
+  document.getElementById('login-error').classList.remove('show');
+  resetLoginForm();
+});
+function showRegister(){
+  _registerMode=true;
+  document.getElementById('pw-confirm-field').style.display='block';
+  document.getElementById('login-hint').textContent='První přihlášení — nastav si heslo (min. 6 znaků, zapamatuj si ho).';
+  document.getElementById('login-btn').textContent='Nastavit heslo a přihlásit';
+}
+function resetLoginForm(){
+  _registerMode=false;
+  document.getElementById('pw-confirm-field').style.display='none';
+  document.getElementById('login-hint').textContent='Při prvním přihlášení si nastavíš vlastní heslo.';
+  document.getElementById('login-btn').textContent='Přihlásit se';
+}
+async function doLogin(){
+  const email=(document.getElementById('login-user').value||'').trim().toLowerCase();
+  const pw=document.getElementById('login-password').value;
+  const err=document.getElementById('login-error'); err.classList.remove('show');
+  const fail=m=>{err.textContent=m;err.classList.add('show');};
+  if(!email) return fail('Zadej e-mail.');
+  if(!pw) return fail('Zadej heslo.');
+  const user=EMAIL_TO_USER[email];
+  if(!user) return fail('Tento e-mail nemá v systému přístup.');
+
+  if(_registerMode){
+    const pw2=document.getElementById('login-password2').value;
+    if(pw.length<6) return fail('Heslo musí mít aspoň 6 znaků.');
+    if(pw!==pw2) return fail('Hesla se neshodují.');
+    try{
+      await auth.createUserWithEmailAndPassword(email,pw);
+      await db.ref(`${ROOT}/uidmap/${auth.currentUser.uid}`).set(userKey(user));
+    }catch(e){
+      if(e.code==='auth/email-already-in-use'){ return fail('Účet už existuje — přihlas se heslem (ne registrace).'); }
+      return fail('Chyba registrace: '+(e.message||e.code));
+    }
+    return;
+  }
+
+  try{
+    await auth.signInWithEmailAndPassword(email,pw);
+  }catch(e){
+    if(e.code==='auth/user-not-found'){ showRegister(); return fail('První přihlášení — nastav si heslo níže.'); }
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential'){ return fail('Nesprávné heslo.'); }
+    return fail('Chyba přihlášení: '+(e.message||e.code));
+  }
+}
+function enterApp(user){
+  currentUser=user;
+  document.getElementById('login-overlay').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-badge').textContent=USERS[user].label;
+  if(IS_OM(user)){ document.querySelectorAll('[data-om="1"]').forEach(el=>el.style.display='block'); }
+  const u=auth.currentUser;
+  const start=()=>{ ensureUidmap(u).finally(()=>{ setupSync(); switchTab('prep'); }); };
+  if(u){ u.getIdToken(true).then(start).catch(start); }
+  else { start(); }
+}
+async function ensureUidmap(u){
+  if(!u) return;
+  try{
+    const ref=db.ref(`${ROOT}/uidmap/${u.uid}`);
+    const snap=await ref.get();
+    if(!snap.exists()){ await ref.set(userKey(currentUser)); }
+  }catch(e){ /* ignore */ }
+}
+function doLogout(){
+  auth.signOut().finally(()=>location.reload());
+}
+
+// ─── SYNC ────────────────────────────────────────────────────────────
+function setupSync(){
+  if(IS_OM(currentUser)){
+    _store={ prep:{}, records:{}, tasks:{}, schedule:{} };
+    ['prep','records','tasks','schedule'].forEach(sec=>{
+      db.ref(`${ROOT}/${sec}`).on('value', snap=>{
+        _store[sec]=snap.val()||{};
+        setSync(true); renderActive();
+      }, e=>{ console.error(e); setSync(false); });
+    });
+  }else{
+    const k=userKey(currentUser);
+    _store={ prep:{}, records:{}, tasks:{} };
+    ['prep','records','tasks'].forEach(sec=>{
+      db.ref(`${ROOT}/${sec}/${k}`).on('value', snap=>{
+        _store[sec][k]=snap.val()|| (sec==='tasks'?[]:{});
+        setSync(true); renderActive();
+      }, e=>{ console.error(e); setSync(false); });
+    });
+  }
+}
+function setSync(ok){
+  const b=document.getElementById('sync-badge');
+  b.className='sync-badge '+(ok?'sync-ok':'sync-off');
+  b.textContent=ok?'● Online':'● Offline';
+}
+function persist(path,val){
+  db.ref(`${ROOT}/${path}`).set(val).catch(e=>alert('Chyba uložení: '+e.message));
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────
+let activeTab='prep';
+function switchTab(t){
+  activeTab=t;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  renderActive();
+}
+function renderActive(){
+  if(!currentUser) return;
+  const c=document.getElementById('content');
+  if(activeTab==='prep') c.innerHTML=renderPrep();
+  else if(activeTab==='record') c.innerHTML=renderRecord();
+  else if(activeTab==='tasks') c.innerHTML=renderTasks();
+  else if(activeTab==='overview') c.innerHTML=renderOverview();
+}
+
+let _viewUser=null;
+function targetUser(){
+  if(IS_OM(currentUser) && _viewUser) return _viewUser;
+  return currentUser;
+}
+function omSelector(){
+  if(!IS_OM(currentUser)) return '';
+  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
+  return `<div class="sel-bar"><label style="font-size:12px;font-weight:600;color:var(--muted)">Zobrazit podřízeného:</label>
+    <select onchange="_viewUser=this.value;renderActive()">
+      <option value="">— vyber —</option>
+      ${subs.map(u=>`<option value="${u}" ${_viewUser===u?'selected':''}>${USERS[u].label}</option>`).join('')}
+    </select></div>`;
+}
+
+function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// ─── PREP TAB ────────────────────────────────────────────────────────
+function renderPrep(){
+  const tu=targetUser();
+  if(IS_OM(currentUser) && !tu) return omSelector()+`<div class="empty">Vyber podřízeného pro zobrazení jeho přípravy.</div>`;
+  const rt=USERS[tu].roleType;
+  if(!QSETS[rt]) return omSelector()+`<div class="empty">Pro tuto roli není definovaná příprava.</div>`;
+  const month=curMonth();
+  const saved=(_store.prep[userKey(tu)]&&_store.prep[userKey(tu)][month])||{};
+  const readOnly=IS_OM(currentUser)&&tu!==currentUser;
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Příprava na 1:1 — ${USERS[tu].label}</h2>
+    <p>Vyplň PŘED schůzkou. Promysli si otázky a napiš si konkrétní body (jména, čísla, situace). Měsíc: <b>${month}</b></p></div>`;
+  if(readOnly) html+=`<div class="priv-note">Prohlížíš přípravu podřízeného (jen pro čtení).</div>`;
+  html+=`<div class="panel"><div class="panel-head">K zamyšlení</div><div class="panel-body">`;
+  QSETS[rt].forEach((sec,si)=>{
+    html+=secOpen(sec[0],si+1);
+    sec[1].forEach((q,qi)=>{
+      const id=`p_${si}_${qi}`;
+      html+=`<div class="q-item"><label class="q-label">${gtext(q,tu)}</label>
+        <textarea class="q-input" id="${id}" ${readOnly?'disabled':''}>${esc(saved[id]||'')}</textarea></div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=secOpen('Vlastní témata','')+
+    `<div class="q-item"><textarea class="q-input" id="p_own" ${readOnly?'disabled':''} placeholder="Co chci tento měsíc probrat navíc...">${esc(saved.p_own||'')}</textarea></div></div>`;
+  if(!readOnly){
+    html+=`<div class="save-bar"><button class="btn btn-primary" onclick="savePrep('${rt}')">Uložit přípravu</button>
+      <span class="save-status" id="prep-saved">✓ Uloženo</span></div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+function savePrep(rt){
+  const tu=targetUser(); const month=curMonth(); const data={};
+  QSETS[rt].forEach((sec,si)=>sec[1].forEach((q,qi)=>{const id=`p_${si}_${qi}`;data[id]=val(id);}));
+  data.p_own=val('p_own'); data._updated=new Date().toISOString();
+  const cur=_store.prep[userKey(tu)]||{};
+  cur[month]=data;
+  persist(`prep/${userKey(tu)}`,cur);
+  flash('prep-saved');
+}
+
+// ─── RECORD TAB ──────────────────────────────────────────────────────
+function renderRecord(){
+  if(!IS_OM(currentUser)) return `<div class="empty">Tato sekce je dostupná jen pro Operations Managera.</div>`;
+  const tu=targetUser();
+  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const rt=USERS[tu].roleType; const month=curMonth();
+  const saved=(_store.records[userKey(tu)]&&_store.records[userKey(tu)][month])||{};
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Záznam 1:1 — ${USERS[tu].label}</h2>
+    <p><b>Zápis ze schůzky</b> — vyplňuje manažer během / po 1:1. Na rozdíl od Přípravy (kterou si píše podřízený předem) sem patří, co reálně padlo: kontrola úkolů z minula a poznámky k jednotlivým tématům. Slouží jako trvalá paměť — příští měsíc se sem vrátíš. Měsíc: <b>${month}</b>.<br><span style="opacity:.85">Citlivé hodnocení lidí (People Review) sem nepatří — to zůstává v Excelu.</span></p></div>`;
+  html+=`<div class="panel"><div class="panel-head carry">Z minula — co jsme dohodli a splnilo se?</div><div class="panel-body">
+    <div class="sec" style="margin-top:0">
+    <textarea class="q-input" id="r_carry" style="min-height:70px" placeholder="Kontrola úkolů z minulého měsíce...">${esc(saved.r_carry||'')}</textarea></div></div></div>`;
+  html+=`<div class="panel"><div class="panel-head">Poznámky k tématům</div><div class="panel-body">`;
+  QSETS[rt].forEach((sec,si)=>{
+    html+=secOpen(sec[0],si+1)+
+      `<div class="q-item"><textarea class="q-input" id="r_${si}" placeholder="Co k tématu padlo na schůzce...">${esc(saved['r_'+si]||'')}</textarea></div></div>`;
+  });
+  html+=`<div class="save-bar"><button class="btn btn-primary" onclick="saveRecord('${rt}')">Uložit záznam</button>
+    <span class="save-status" id="rec-saved">✓ Uloženo</span></div></div></div>`;
+  return html;
+}
+function saveRecord(rt){
+  const tu=targetUser(); const month=curMonth(); const data={r_carry:val('r_carry')};
+  QSETS[rt].forEach((sec,si)=>data['r_'+si]=val('r_'+si));
+  data._updated=new Date().toISOString(); data._by=currentUser;
+  const cur=_store.records[userKey(tu)]||{}; cur[month]=data;
+  persist(`records/${userKey(tu)}`,cur);
+  flash('rec-saved');
+}
+
+// ─── TASKS TAB ───────────────────────────────────────────────────────
+function renderTasks(){
+  const tu=targetUser();
+  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const list=(_store.tasks[userKey(tu)]||[]).filter(Boolean);
+  let html=omSelector();
+  html+=`<div class="intro"><h2>Akční úkoly — ${USERS[tu].label}</h2>
+    <p>Co bylo dohodnuto. Max. doporučeno 5 aktivních. Aktualizuj stav průběžně.</p></div>`;
+  html+=`<div class="panel"><div class="panel-head tasks">Úkoly <button class="btn btn-ghost btn-sm" onclick="addTask()">+ Přidat úkol</button></div><div class="panel-body">`;
+  if(!list.length){ html+=`<div class="empty">Zatím žádné úkoly. Přidej první.</div>`; }
+  else{
+    html+=`<table><thead><tr><th style="width:34%">Úkol</th><th>Owner</th><th>Termín</th><th>Stav</th><th></th></tr></thead><tbody>`;
+    list.forEach((t,i)=>{
+      html+=`<tr>
+        <td><input value="${escA(t.title||'')}" onchange="updTask(${i},'title',this.value)"></td>
+        <td><input value="${escA(t.owner||'')}" onchange="updTask(${i},'owner',this.value)"></td>
+        <td><input type="date" value="${escA(t.due||'')}" onchange="updTask(${i},'due',this.value)"></td>
+        <td><select onchange="updTask(${i},'status',this.value)">
+          ${['Nezahájeno','Probíhá','Hotovo','Blokováno'].map(s=>`<option ${t.status===s?'selected':''}>${s}</option>`).join('')}
+        </select></td>
+        <td><button class="row-del" onclick="delTask(${i})" title="Smazat">×</button></td>
+      </tr>`;
+    });
+    html+=`</tbody></table>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+function tasksOf(tu){ return (_store.tasks[userKey(tu)]||[]).filter(Boolean); }
+function addTask(){
+  const tu=targetUser(); const list=tasksOf(tu);
+  list.push({id:'t'+Date.now(),title:'',owner:USERS[tu]&&!IS_OM(tu)?tu:'',due:'',status:'Nezahájeno',createdAt:new Date().toISOString()});
+  persist(`tasks/${userKey(tu)}`,list);
+}
+function updTask(i,k,v){ const tu=targetUser(); const list=tasksOf(tu); if(!list[i])return; list[i][k]=v; persist(`tasks/${userKey(tu)}`,list); }
+function delTask(i){ const tu=targetUser(); const list=tasksOf(tu); list.splice(i,1); persist(`tasks/${userKey(tu)}`,list); }
+
+// ─── OVERVIEW (OM only) ──────────────────────────────────────────────
+function renderOverview(){
+  if(!IS_OM(currentUser)) return `<div class="empty">Nedostupné.</div>`;
+  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
+  let html=`<div class="intro"><h2>Přehled — plán a stav 1:1</h2>
+    <p>Tvůj pohled na všechny. Plán schůzek, otevřené úkoly a připravenost na jednom místě.</p></div>`;
+
+  html+=`<div class="panel"><div class="panel-head">Plán 1:1 — kdy s kým</div><div class="panel-body">`;
+  html+=`<table><thead><tr><th>Osoba</th><th>Poslední 1:1</th><th>Příští (návrh / vlastní)</th><th>Stav</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    const last=lastMeetingMonth(u);
+    const sched=(_store.schedule&&_store.schedule[userKey(u)])||{};
+    const suggested=nextSuggestion(last);
+    const custom=sched.next||'';
+    const effective=custom||suggested;
+    const st=scheduleStatus(effective);
+    html+=`<tr>
+      <td><b>${u.split(' ')[0]}</b><div style="font-size:11px;color:var(--muted)">${ROLE_LABEL[USERS[u].roleType]||''}</div></td>
+      <td>${last?fmtMonth(last):'<span style="color:var(--muted)">—</span>'}</td>
+      <td><input type="date" value="${custom}" placeholder="${suggested}" onchange="setNext('${userKey(u)}',this.value)" style="max-width:160px">
+          ${!custom&&suggested?`<div style="font-size:11px;color:var(--muted)">návrh: ${fmtDate(suggested)}</div>`:''}</td>
+      <td>${st.pill}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">„Poslední 1:1" se počítá automaticky z vyplněných záznamů. „Příští" navrhne systém (poslední + 1 měsíc) — můžeš přepsat vlastním datem.</div>`;
+  html+=`</div></div>`;
+
+  html+=`<div class="panel"><div class="panel-head">Otevřené úkoly</div><div class="panel-body">`;
+  let any=false;
+  html+=`<table><thead><tr><th>Osoba</th><th style="width:34%">Úkol</th><th>Termín</th><th>Stav</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    tasksOf(u).filter(t=>t.status!=='Hotovo'&&t.title).forEach(t=>{
+      any=true;
+      html+=`<tr><td><b>${u.split(' ')[0]}</b></td><td>${esc(t.title)}</td>
+        <td>${t.due||'—'}</td><td>${statusPill(t.status)}</td></tr>`;
+    });
+  });
+  html+=`</tbody></table>`;
+  if(!any) html+=`<div class="empty">Žádné otevřené úkoly.</div>`;
+  html+=`</div></div>`;
+
+  const month=curMonth();
+  html+=`<div class="panel"><div class="panel-head">Připravenost na tento měsíc (${fmtMonth(month)})</div><div class="panel-body">
+    <table><thead><tr><th>Osoba</th><th>Příprava</th><th>Záznam</th></tr></thead><tbody>`;
+  subs.forEach(u=>{
+    const p=_store.prep[userKey(u)]&&_store.prep[userKey(u)][month];
+    const r=_store.records[userKey(u)]&&_store.records[userKey(u)][month];
+    html+=`<tr><td><b>${u.split(' ')[0]}</b></td>
+      <td>${p?'<span class="status-pill st-done">Vyplněno</span>':'<span class="status-pill st-new">Čeká</span>'}</td>
+      <td>${r?'<span class="status-pill st-done">Hotovo</span>':'<span class="status-pill st-new">—</span>'}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  return html;
+}
+
+function lastMeetingMonth(u){
+  const rec=_store.records[userKey(u)];
+  if(!rec) return null;
+  const months=Object.keys(rec).filter(m=>/^\d{4}-\d{2}$/.test(m)).sort();
+  return months.length?months[months.length-1]:null;
+}
+function nextSuggestion(lastMonth){
+  let y,m;
+  if(lastMonth){ [y,m]=lastMonth.split('-').map(Number); }
+  else { const d=new Date(); y=d.getFullYear(); m=d.getMonth()+1; }
+  m+=1; if(m>12){m=1;y+=1;}
+  return `${y}-${String(m).padStart(2,'0')}-01`;
+}
+function scheduleStatus(dateStr){
+  if(!dateStr) return {pill:'<span class="status-pill st-new">—</span>'};
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(dateStr+'T00:00:00');
+  const days=Math.round((d-today)/86400000);
+  if(days<0) return {pill:'<span class="status-pill st-block">Po termínu</span>'};
+  if(days<=7) return {pill:'<span class="status-pill st-prog">Blíží se</span>'};
+  return {pill:'<span class="status-pill st-done">V termínu</span>'};
+}
+function setNext(personKey,dateStr){
+  const cur=(_store.schedule&&_store.schedule[personKey])||{};
+  cur.next=dateStr;
+  persist(`schedule/${personKey}`,cur);
+}
+function fmtMonth(ym){ const [y,m]=ym.split('-'); return `${m}/${y}`; }
+function fmtDate(d){ const [y,m,da]=d.split('-'); return `${da}.${m}.${y}`; }
+
+// ─── helpers ─────────────────────────────────────────────────────────
+function statusPill(s){
+  const m={'Hotovo':'st-done','Probíhá':'st-prog','Blokováno':'st-block','Nezahájeno':'st-new'};
+  return `<span class="status-pill ${m[s]||'st-new'}">${s}</span>`;
+}
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escA(s){ return esc(s).replace(/"/g,'&quot;'); }
+function flash(id){ const e=document.getElementById(id); if(!e)return; e.classList.add('show'); setTimeout(()=>e.classList.remove('show'),1500); }
+
+// ─── BOOT ────────────────────────────────────────────────────────────
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    let name=EMAIL_TO_USER[user.email];
+    if(!name){
+      try{
+        const s=await db.ref(`${ROOT}/uidmap/${user.uid}`).get();
+        if(s.exists()){ const pk=s.val(); name=Object.keys(USERS).find(n=>userKey(n)===pk); }
+      }catch{}
+    }
+    if(name && USERS[name]){ enterApp(name); return; }
+  }
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('app').style.display='none';
+});
+
+// ═══ PWA: instalace jako jedna ikona ═════════════════════════════════
+// Manifest se generuje za běhu (blob URL) → zůstává jeden HTML soubor.
+(function setupPWA(){
+  const ICON = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='512'%20height='512'%3E%3Crect%20width='512'%20height='512'%20rx='112'%20fill='%231F3864'/%3E%3Ctext%20x='256'%20y='332'%20font-family='monospace'%20font-size='210'%20font-weight='700'%20fill='%23ffffff'%20text-anchor='middle'%3E1:1%3C/text%3E%3C/svg%3E";
+  const manifest = {
+    name: "1:1 Systém — Yanfeng Planá",
+    short_name: "1:1 Systém",
+    description: "Příprava, záznam a úkoly pro 1:1 schůzky — Yanfeng Planá",
+    start_url: ".",
+    scope: ".",
+    display: "standalone",
+    orientation: "any",
+    background_color: "#1F3864",
+    theme_color: "#1F3864",
+    lang: "cs",
+    icons: [
+      { src: ICON, sizes: "192x192", type: "image/svg+xml", purpose: "any" },
+      { src: ICON, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+    ]
+  };
+  try{
+    const blob = new Blob([JSON.stringify(manifest)], {type:"application/manifest+json"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('link');
+    link.rel = 'manifest'; link.href = url;
+    document.head.appendChild(link);
+  }catch(e){ /* manifest nepodporován — appka běží dál normálně */ }
+
+  // Service worker (z blob URL) — cachuje stránku pro offline běh.
+  // Funguje jen z https:// nebo http://localhost (ne z file://).
+  if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+    const sw = `
+      const C='oneone-v1';
+      self.addEventListener('install',e=>{self.skipWaiting();});
+      self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});
+      self.addEventListener('fetch',e=>{
+        const r=e.request;
+        if(r.method!=='GET'){return;}
+        // Firebase/sync nech jít vždy na síť
+        if(/firebaseio|googleapis|gstatic|firebaseapp/.test(r.url)){return;}
+        e.respondWith(
+          fetch(r).then(resp=>{
+            const cp=resp.clone();
+            caches.open(C).then(c=>c.put(r,cp)).catch(()=>{});
+            return resp;
+          }).catch(()=>caches.match(r).then(m=>m||caches.match('./')))
+        );
+      });
+    `;
+    try{
+      const swUrl = URL.createObjectURL(new Blob([sw],{type:'text/javascript'}));
+      navigator.serviceWorker.register(swUrl).catch(e=>console.warn('SW:',e));
+    }catch(e){ /* ignore */ }
+  }
+
+  // Instalační tlačítko (Chrome/Edge na Androidu i Windows)
+  let deferred=null;
+  const btn=document.getElementById('install-btn');
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault(); deferred=e;
+    if(btn) btn.style.display='inline-block';
+  });
+  window.doInstall=async function(){
+    if(!deferred) return;
+    deferred.prompt();
+    try{ await deferred.userChoice; }catch{}
+    deferred=null;
+    if(btn) btn.style.display='none';
+  };
+  window.addEventListener('appinstalled',()=>{ if(btn) btn.style.display='none'; });
+
+  // iOS Safari nemá beforeinstallprompt → ukaž návod „Přidat na plochu"
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if(isIOS && !standalone){
+    setTimeout(()=>{ const h=document.getElementById('ios-hint'); if(h) h.style.display='block'; },1800);
+  }
+})();
+</script>
+</body>
+</html>
