@@ -172,6 +172,27 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .cell-menu{position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(31,56,100,.25);padding:5px;min-width:200px}
 .cell-menu-item{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 12px;font-size:13px;font-weight:600;color:var(--dark);cursor:pointer;border-radius:7px;font-family:inherit}
 .cell-menu-item:hover{background:var(--light)}
+/* ── E-mail pozvánka na 1:1 ── */
+.hm-mail{background:none;border:none;color:var(--mid);font-size:12px;cursor:pointer;padding:1px 4px;border-radius:5px;opacity:.5;line-height:1}
+.hm-mail:hover{opacity:1;background:var(--light)}
+.att-mail{background:none;border:1px solid var(--border);color:var(--dark);font-size:11px;cursor:pointer;padding:2px 8px;border-radius:6px;margin-left:6px;line-height:1.4}
+.att-mail:hover{background:var(--light);border-color:var(--border-strong)}
+.inv-bar{display:flex;justify-content:flex-end;margin:-4px 0 14px}
+.inv-card{max-width:580px;max-height:88vh;overflow:auto}
+.inv-sub{font-size:11.5px;color:var(--muted);margin:-10px 0 16px;line-height:1.5}
+.inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px;margin-bottom:13px}
+.inv-grid .pw-field{margin-bottom:0}
+.inv-full{grid-column:1/-1}
+.inv-card select{width:100%;font-size:14px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-input);font-family:inherit;color:var(--text)}
+.inv-card select:focus{outline:none;border-color:var(--mid);background:#fff}
+.inv-body{min-height:200px;font-size:12.5px;line-height:1.55}
+.inv-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-top:11px;cursor:pointer}
+.inv-check input{width:auto;margin:0}
+.inv-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.inv-actions .inv-spacer{flex:1}
+.inv-note{font-size:11px;color:var(--green);font-weight:600;opacity:0;transition:opacity .2s}
+.inv-note.show{opacity:1}
+@media(max-width:560px){.inv-grid{grid-template-columns:1fr}.inv-actions{justify-content:stretch}.inv-actions .btn{flex:1}}
 
 /* heat mapa */
 .hm-scroll{overflow-x:auto}
@@ -779,6 +800,9 @@ function renderPrep(){
   html+=`<div class="intro"><h2>Příprava na 1:1 — ${USERS[tu].label}</h2>
     <p>Vyplň PŘED schůzkou. Promysli si otázky a napiš si konkrétní body (jména, čísla, situace). Měsíc: <b>${month}</b></p></div>`;
   if(readOnly) html+=`<div class="priv-note">Prohlížíš přípravu podřízeného (jen pro čtení).</div>`;
+  if(IS_OM(currentUser) && tu!==currentUser){
+    html+=`<div class="inv-bar"><button class="btn btn-ghost btn-sm" onclick="openInviteModal('${escA(tu)}','${month}')">✉ Poslat pozvánku na 1:1</button></div>`;
+  }
   html+=`<div class="panel"><div class="panel-head">K zamyšlení</div><div class="panel-body">`;
   QSETS[rt].forEach((sec,si)=>{
     html+=secOpen(sec[0],si+1);
@@ -1036,7 +1060,8 @@ function attentionHTML(subs){
     html+=`<table class="att-t"><tbody>`+overdue.map(o=>
       `<tr><td class="att-name"><b>${o.u.split(' ')[0]}</b> <span class="att-dept">${dept(o.u)}</span></td>
         <td class="att-info">plán ${fmtDate(o.date)}</td>
-        <td class="att-badge"><span class="att-pill att-red">${o.days} dní po termínu</span></td></tr>`).join('')+`</tbody></table>`;
+        <td class="att-badge"><span class="att-pill att-red">${o.days} dní po termínu</span>
+          <button class="att-mail" title="Poslat novou pozvánku" onclick="openInviteModal('${escA(o.u)}','${o.date.slice(0,7)}')">✉ Pozvánka</button></td></tr>`).join('')+`</tbody></table>`;
   } else html+=`<div class="att-empty">Nic propadlého. 👍</div>`;
   html+=`</div>`;
 
@@ -1065,7 +1090,8 @@ function attentionHTML(subs){
     html+=`<table class="att-t"><tbody>`+stale.map(o=>
       `<tr><td class="att-name"><b>${o.u.split(' ')[0]}</b> <span class="att-dept">${dept(o.u)}</span></td>
         <td class="att-info"></td>
-        <td class="att-badge"><span class="att-pill att-navy">${o.gap===null?'nikdy':o.gap+' měsíců'}</span></td></tr>`).join('')+`</tbody></table>`;
+        <td class="att-badge"><span class="att-pill att-navy">${o.gap===null?'nikdy':o.gap+' měsíců'}</span>
+          <button class="att-mail" title="Poslat pozvánku na 1:1" onclick="openInviteModal('${escA(o.u)}','${curMonth()}')">✉ Pozvánka</button></td></tr>`).join('')+`</tbody></table>`;
   } else html+=`<div class="att-empty">Všichni v rytmu. 👍</div>`;
   html+=`</div>`;
 
@@ -1113,6 +1139,7 @@ function cycleCell(personName, key){
     if(!chosen) return; rec._held=chosen; delete rec._planned; delete rec._noF2F;
     cur[key]=rec; persist(`records/${k}`,cur); renderActive();
   });
+  const sendInvite=()=>openInviteModal(personName, key, rec._planned||rec._held||null);
   const setNoF2F=()=>askReason(rec._noF2F||'', (v)=>{
     const t=(v||'').trim();
     if(t){ rec._noF2F=t; delete rec._held; } else { delete rec._noF2F; }
@@ -1124,17 +1151,20 @@ function cycleCell(personName, key){
     // proběhlo → menu: přeplánovat / zrušit
     cellMenu([
       {label:'📅 Naplánovat znovu', fn:setPlanned},
+      {label:'✉ Poslat pozvánku e-mailem', fn:sendInvite},
       {label:'✗ Zrušit označení', fn:saveClear}
     ]);
   } else if(rec._noF2F){
     cellMenu([
       {label:'✎ Upravit / smazat důvod', fn:setNoF2F},
       {label:'📅 Naplánovat', fn:setPlanned},
+      {label:'✉ Poslat pozvánku e-mailem', fn:sendInvite},
       {label:'✓ Proběhlo', fn:setHeld}
     ]);
   } else if(rec._planned){
     cellMenu([
       {label:'📅 Přeplánovat (jiné datum)', fn:setPlanned},
+      {label:'✉ Poslat pozvánku e-mailem', fn:sendInvite},
       {label:'✓ Proběhlo', fn:setHeld},
       {label:'⊘ Neproběhne F2F — zapsat důvod', fn:setNoF2F},
       {label:'✗ Zrušit plán', fn:saveClear}
@@ -1261,7 +1291,8 @@ function heatmapHTML(subs){
       else if(gap<=2) gapBadge=`<span class="hm-gap hm-gap-warn">${gap} měs.</span>`;
       else gapBadge=`<span class="hm-gap hm-gap-bad">${gap} měs.</span>`;
       return `<tr>
-        <td class="hm-name">${u.split(' ')[0]} <span class="hm-dept">${(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||''}</span></td>
+        <td class="hm-name">${u.split(' ')[0]} <span class="hm-dept">${(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||''}</span>
+          <button class="hm-mail" title="Poslat pozvánku na 1:1 e-mailem" onclick="event.stopPropagation();openInviteModal('${escA(u)}','${year}-${String(curM).padStart(2,'0')}')">✉</button></td>
         ${cells}
         <td class="hm-gapcell">${gapBadge}</td>
       </tr>`;
@@ -1282,7 +1313,7 @@ function heatmapHTML(subs){
       <span><i class="hm-lg hm-planned"></i> naplánováno</span>
       <span><i class="hm-lg hm-missed"></i> neprovedeno v čas</span><span><i class="hm-lg hm-excused-lg"></i>neproběhlo (s důvodem)</span>
       <span><i class="hm-lg hm-miss"></i> bez 1:1</span>
-      <span class="hm-legend-gap">Klik na prázdnou buňku = naplánovat. Klik na naplánovanou/proběhlou = menu (přeplánovat / proběhlo / zrušit). Číslo = datum. <b style="color:var(--red)">Bez 1:1 3+ měs. = dohnat</b></span>
+      <span class="hm-legend-gap">Klik na prázdnou buňku = naplánovat. Klik na naplánovanou/proběhlou = menu (přeplánovat / pozvánka e-mailem / proběhlo / zrušit). ✉ u jména = pozvánka na tento měsíc. Číslo = datum. <b style="color:var(--red)">Bez 1:1 3+ měs. = dohnat</b></span>
     </div>
   </div></div>`;
 }
@@ -1309,39 +1340,241 @@ function setNext(personKey,dateStr){
 }
 function fmtMonth(ym){ const [y,m]=ym.split('-'); return `${m}/${y}`; }
 function fmtDate(d){ const [y,m,da]=d.split('-'); return `${da}.${m}.${y}`; }
-// Build & download an Outlook-compatible .ics invite for a 1:1 (default 45 min, 09:00).
-function makeInvite(personName, dateStr){
-  const first=personName.split(' ')[0];
-  const subject=`1:1 — ${personName}`;
-  const isTalent = USERS[personName] && USERS[personName].roleType === 'talent';
-  const bodyLines = isTalent ? [
-    'Ahoj,',
-    '',
-    'rád bych si s tebou nastavil pravidelný 1:1 meeting.',
-    '',
-    'Cílem tohoto setkání není kontrola výkonu ani nahrazení tvého přímého manažera. Ber to prosím jako prostor pro rozvoj, mentoring a otevřenou zpětnou vazbu.',
-    '',
-    'Agendu najdeš v aplikaci.',
-    '',
-    'Díky a těším se na setkání.',
-    'Milan'
-  ] : [
-    'Ahoj,',
-    '',
-    'posílám pozvánku na náš měsíční 1:1 meeting. Rád bych s tebou pravidelně prošel, jak se dařilo za poslední měsíc, jaká jsou aktuální témata, kde vidíš problémy a kde případně potřebuješ podporu ode mě.',
-    '',
-    'Před meetingem si prosím vyplň krátkou přípravu v aplikaci. Nemusí to být nic dlouhého — stačí pár konkrétních bodů, které spolu následně projdeme.',
-    '',
-    'Cílem je mít věcnou a otevřenou diskuzi nad tím, co je důležité, a domluvit se na jasných prioritách a dalších krocích.',
-    '',
-    'Díky.',
-    'Milan'
-  ];
-  const body=bodyLines.join('\r\n');
-  const href=`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href=href;
+// ─── E-MAILOVÁ POZVÁNKA NA 1:1 ───────────────────────────────────────
+// Otevře editor pozvánky (příjemce / termín / text), pak předá hotový
+// mail do klienta přes mailto: — případně stáhne .ics do kalendáře.
+const CZ_DAYS=['neděle','pondělí','úterý','středa','čtvrtek','pátek','sobota'];
+const INV_DUR=[30,45,60,90];
+let _inv=null; // {person, month, lastSubject, lastBody}
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function inviteEnd(dateStr,timeStr,min){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const [hh,mm]=timeStr.split(':').map(Number);
+  return new Date(y,m-1,d,hh,mm+Number(min));
+}
+function longDate(dateStr){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  return `${CZ_DAYS[new Date(y,m-1,d).getDay()]} ${d}. ${m}. ${y}`;
+}
+// Uložené kontaktní údaje osoby (reálný e-mail, obvyklý čas/místo) žijí
+// v už existujícím uzlu schedule/<key>, který OM čte i zapisuje.
+function inviteMeta(person){ return ((_store.schedule||{})[userKey(person)])||{}; }
+function saveInviteMeta(person,patch){
+  const k=userKey(person);
+  const cur=Object.assign({},inviteMeta(person),patch);
+  Object.keys(cur).forEach(x=>{ if(cur[x]==='' || cur[x]==null) delete cur[x]; });
+  if(!_store.schedule) _store.schedule={};
+  _store.schedule[k]=cur;
+  persist(`schedule/${k}`,cur);
 }
 
+// Text pozvánky — jiný pro talenty (rozvojové 1:1) než pro přímé podřízené.
+function inviteTemplate(person,dateStr,timeStr,durMin,place){
+  const first=(person||'').split(' ')[0];
+  const me=USERS[currentUser]||{};
+  const org=(currentUser||'').split(' ')[0]||'';
+  const Rad=me.g==='f'?'Ráda':'Rád', rad=me.g==='f'?'ráda':'rád';
+  const prosel=me.g==='f'?'prošla':'prošel';
+  const nastavil=me.g==='f'?'nastavila':'nastavil';
+  const when=`${longDate(dateStr)}, ${timeStr}–${pad2(inviteEnd(dateStr,timeStr,durMin).getHours())}:${pad2(inviteEnd(dateStr,timeStr,durMin).getMinutes())} (${durMin} min)`;
+  const isTalent=USERS[person]&&USERS[person].roleType==='talent';
+  const t = isTalent ? {
+    open:`${rad} bych si s tebou ${nastavil} pravidelný 1:1 meeting.`,
+    rest:[
+      'Cílem tohoto setkání není kontrola výkonu ani nahrazení tvého přímého manažera. Ber to prosím jako prostor pro rozvoj, mentoring a otevřenou zpětnou vazbu.',
+      'Agendu najdeš v aplikaci.'
+    ],
+    close:'Díky a těším se na setkání.'
+  } : {
+    open:`posílám pozvánku na náš měsíční 1:1 meeting. ${Rad} bych s tebou pravidelně ${prosel}, jak se dařilo za poslední měsíc, jaká jsou aktuální témata, kde vidíš problémy a kde případně potřebuješ podporu ode mě.`,
+    rest:[
+      'Před meetingem si prosím vyplň krátkou přípravu v aplikaci. Nemusí to být nic dlouhého — stačí pár konkrétních bodů, které spolu následně projdeme.',
+      'Cílem je mít věcnou a otevřenou diskuzi nad tím, co je důležité, a domluvit se na jasných prioritách a dalších krocích.'
+    ],
+    close:'Díky.'
+  };
+  const lines=[`Ahoj ${first},`,'',t.open,'',`Termín: ${when}`];
+  if(place) lines.push(`Místo: ${place}`);
+  lines.push('');
+  t.rest.forEach(par=>lines.push(par,''));
+  lines.push(t.close, org);
+  return {
+    subject:`Pozvánka na 1:1 — ${person} (${fmtDate(dateStr)}, ${timeStr})`,
+    body:lines.join('\n')
+  };
+}
+
+function openInviteModal(person, monthKey, presetDate){
+  if(!person||!USERS[person]){ alert('Nejdřív vyber osobu.'); return; }
+  const old=document.getElementById('invite-modal'); if(old) old.remove();
+  const k=userKey(person);
+  const mk=monthKey||(presetDate?presetDate.slice(0,7):curMonth());
+  const rec=(_store.records[k]||{})[mk]||{};
+  const meta=inviteMeta(person);
+  let date=presetDate||rec._planned||rec._held||'';
+  if(!date) date=(mk===curMonth())?todayISO():`${mk}-15`;
+  const time=meta.time||'09:00';
+  const dur=INV_DUR.includes(Number(meta.dur))?Number(meta.dur):45;
+  const place=meta.place||'';
+  const tpl=inviteTemplate(person,date,time,dur,place);
+  _inv={person,month:mk,lastSubject:tpl.subject,lastBody:tpl.body};
+
+  const wrap=document.createElement('div');
+  wrap.id='invite-modal'; wrap.className='pw-overlay';
+  wrap.innerHTML=`<div class="pw-card inv-card">
+    <h3>✉ Pozvánka na 1:1 — ${esc(person)}</h3>
+    <div class="inv-sub">Vyplň termín, uprav text a otevři to v mailu. Text se automaticky přegeneruje, dokud ho neupravíš ručně.</div>
+    <div class="inv-grid">
+      <div class="pw-field inv-full"><label>Komu (e-mail)</label>
+        <input type="email" id="inv-to" placeholder="jmeno.prijmeni@yanfeng.com" value="${escA(meta.email||'')}"></div>
+      <div class="pw-field"><label>Datum</label><input type="date" id="inv-date" value="${date}"></div>
+      <div class="pw-field"><label>Čas</label><input type="time" id="inv-time" value="${time}"></div>
+      <div class="pw-field"><label>Délka</label>
+        <select id="inv-dur">${INV_DUR.map(d=>`<option value="${d}" ${d===dur?'selected':''}>${d} min</option>`).join('')}</select></div>
+      <div class="pw-field"><label>Místo / odkaz</label>
+        <input type="text" id="inv-place" placeholder="Kancelář OM / MS Teams" value="${escA(place)}"></div>
+    </div>
+    <div class="pw-field"><label>Předmět</label><input type="text" id="inv-subject" value="${escA(tpl.subject)}"></div>
+    <div class="pw-field"><label>Zpráva</label>
+      <textarea class="q-input inv-body" id="inv-body">${esc(tpl.body)}</textarea></div>
+    <label class="inv-check"><input type="checkbox" id="inv-plan" checked> Zapsat termín do plánu 1:1 (heat mapa)</label>
+    <div class="inv-actions">
+      <button class="btn btn-ghost btn-sm" id="inv-reset" title="Vrátit původní text ze šablony">↻ Text</button>
+      <button class="btn btn-ghost btn-sm" id="inv-copy">⧉ Kopírovat</button>
+      <button class="btn btn-ghost btn-sm" id="inv-ics" title="Stáhnout .ics pro kalendář">📅 .ics</button>
+      <span class="inv-note" id="inv-note"></span>
+      <span class="inv-spacer"></span>
+      <button class="btn btn-ghost" id="inv-cancel">Zavřít</button>
+      <button class="btn btn-primary" id="inv-send">✉ Otevřít v e-mailu</button>
+    </div>
+  </div>`;
+  document.body.appendChild(wrap);
+
+  ['inv-date','inv-time','inv-dur','inv-place'].forEach(id=>
+    document.getElementById(id).addEventListener('change',inviteRefresh));
+  document.getElementById('inv-reset').onclick=()=>inviteRefresh(true);
+  document.getElementById('inv-copy').onclick=inviteCopy;
+  document.getElementById('inv-ics').onclick=inviteIcs;
+  document.getElementById('inv-cancel').onclick=closeInvite;
+  document.getElementById('inv-send').onclick=inviteSend;
+  wrap.addEventListener('mousedown',e=>{ if(e.target===wrap) closeInvite(); });
+  document.getElementById('inv-to').focus();
+}
+function closeInvite(){ const w=document.getElementById('invite-modal'); if(w) w.remove(); _inv=null; }
+
+function inviteFields(){
+  return {
+    to:val('inv-to'),
+    date:val('inv-date'),
+    time:val('inv-time')||'09:00',
+    dur:Number(val('inv-dur'))||45,
+    place:val('inv-place'),
+    subject:val('inv-subject'),
+    body:document.getElementById('inv-body').value
+  };
+}
+// Přegeneruje předmět/text ze šablony. Ručně upravený text nechá být
+// (leda by uživatel klikl na "↻ Text" → force).
+function inviteRefresh(force){
+  if(!_inv) return;
+  const f=inviteFields();
+  if(!f.date) return;
+  const tpl=inviteTemplate(_inv.person,f.date,f.time,f.dur,f.place);
+  const sEl=document.getElementById('inv-subject'), bEl=document.getElementById('inv-body');
+  const same=(a,b)=>String(a).replace(/\r/g,'')===String(b).replace(/\r/g,'');
+  if(force===true || same(sEl.value,_inv.lastSubject)) sEl.value=tpl.subject;
+  if(force===true || same(bEl.value,_inv.lastBody)) bEl.value=tpl.body;
+  _inv.lastSubject=tpl.subject; _inv.lastBody=tpl.body;
+}
+function inviteNote(msg){
+  const n=document.getElementById('inv-note'); if(!n) return;
+  n.textContent=msg; n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),1800);
+}
+// Zapíše termín do records jako naplánované 1:1 + zapamatuje si kontakt.
+function inviteRemember(f){
+  if(!_inv) return;
+  saveInviteMeta(_inv.person,{email:f.to,time:f.time,dur:f.dur,place:f.place});
+  const chk=document.getElementById('inv-plan');
+  if(!chk||!chk.checked||!f.date) return;
+  const k=userKey(_inv.person), mk=f.date.slice(0,7);
+  const cur=_store.records[k]||{};
+  const rec=cur[mk]||{};
+  if(rec._held) return; // proběhlé 1:1 nepřepisujeme
+  rec._planned=f.date; delete rec._noF2F; rec._by=currentUser;
+  cur[mk]=rec;
+  _store.records[k]=cur;
+  persist(`records/${k}`,cur);
+  renderActive();
+}
+function inviteSend(){
+  const f=inviteFields();
+  if(!f.date){ alert('Vyber datum meetingu.'); return; }
+  inviteRemember(f);
+  const href=`mailto:${encodeURIComponent(f.to).replace(/%40/g,'@').replace(/%2C/gi,',')}`
+    +`?subject=${encodeURIComponent(f.subject)}&body=${encodeURIComponent(f.body.replace(/\r?\n/g,'\r\n'))}`;
+  const a=document.createElement('a');
+  a.href=href; a.style.display='none';
+  document.body.appendChild(a); a.click(); a.remove();
+  closeInvite();
+}
+function inviteCopy(){
+  const f=inviteFields();
+  const text=`${f.subject}\n\n${f.body}`;
+  const done=()=>inviteNote('✓ Zkopírováno');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done,()=>fallbackCopy(text,done));
+  } else fallbackCopy(text,done);
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea');
+  ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ alert('Kopírování se nepovedlo.'); }
+  ta.remove();
+}
+// "Petr Holas" → "petr-holas" (pro UID a název souboru .ics)
+function slug(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'1on1';
+}
+function icsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+function icsLocal(d){
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+}
+// .ics v lokálním (floating) čase — Outlook i Google ho berou jako místní čas.
+function inviteIcs(){
+  const f=inviteFields();
+  if(!f.date||!_inv){ alert('Vyber datum meetingu.'); return; }
+  inviteRemember(f);
+  const [y,m,d]=f.date.split('-').map(Number);
+  const [hh,mm]=f.time.split(':').map(Number);
+  const start=new Date(y,m-1,d,hh,mm);
+  const end=inviteEnd(f.date,f.time,f.dur);
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const ics=[
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//1:1 System//CS','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${Date.now()}-${slug(_inv.person)}@1on1-system`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${icsLocal(start)}`,
+    `DTEND:${icsLocal(end)}`,
+    `SUMMARY:${icsEsc(f.subject)}`,
+    `DESCRIPTION:${icsEsc(f.body)}`,
+    f.place?`LOCATION:${icsEsc(f.place)}`:'',
+    'END:VEVENT','END:VCALENDAR'
+  ].filter(Boolean).join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`1on1-${slug(_inv.person)}-${f.date}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  inviteNote('✓ Staženo');
+}
+// Zpětná kompatibilita — dřívější přímé mailto volání.
+function makeInvite(personName, dateStr){ openInviteModal(personName, dateStr?dateStr.slice(0,7):null, dateStr||null); }
 // ─── helpers ─────────────────────────────────────────────────────────
 function statusPill(s){
   const m={'Hotovo':'st-done','Probíhá':'st-prog','Blokováno':'st-block','Nezahájeno':'st-new'};
