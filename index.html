@@ -193,6 +193,23 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .inv-note{font-size:11px;color:var(--green);font-weight:600;opacity:0;transition:opacity .2s}
 .inv-note.show{opacity:1}
 @media(max-width:560px){.inv-grid{grid-template-columns:1fr}.inv-actions{justify-content:stretch}.inv-actions .btn{flex:1}}
+/* ── Kolize termínů + evidence pozvánek ── */
+.cf-box{border-radius:9px;padding:9px 12px;font-size:12px;line-height:1.55;margin-top:11px}
+.cf-box b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.cf-hard{background:#FDE7E4;border:1px solid #F1948A;color:#922B21}
+.cf-soft{background:var(--light);border:1px solid var(--border-strong);color:var(--dark)}
+.cf-ok{background:#E7F6EF;border:1px solid #9FD9BF;color:#0B6B47}
+.plan-card{max-width:440px}
+.pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px}
+.pl-grid .pw-field{margin-bottom:0}
+.pl-full{grid-column:1/-1}
+.plan-card select,.plan-card input{width:100%;font-size:14px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-input);font-family:inherit;color:var(--text)}
+.plan-card select:focus,.plan-card input:focus{outline:none;border-color:var(--mid);background:#fff}
+.hm-inv::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px var(--dark)}
+.hm-mail-on{opacity:1;color:var(--green)}
+.inv-sent{font-size:11px;color:var(--green);font-weight:700;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.inv-none{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+@media(max-width:560px){.pl-grid{grid-template-columns:1fr}}
 
 /* heat mapa */
 .hm-scroll{overflow-x:auto}
@@ -204,7 +221,7 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .hm-gaph{background:transparent;color:var(--muted);font-weight:600;text-align:center;padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
 .hm-name{text-align:left;padding:3px 10px 3px 2px;font-weight:600;color:var(--dark);white-space:nowrap;font-size:12px}
 .hm-dept{font-weight:400;color:var(--muted);font-size:10px}
-.hm-cell{width:34px;height:22px;border-radius:4px;text-align:center;font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:#fff;vertical-align:middle;line-height:22px}
+.hm-cell{position:relative;width:34px;height:22px;border-radius:4px;text-align:center;font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:#fff;vertical-align:middle;line-height:22px}
 .hm-done{background:#22A06B}
 .hm-planned{background:#3B82F6}
 .hm-missed{background:#E5484D}
@@ -994,8 +1011,52 @@ function renderOverview(){
     <p>Nahoře heat mapa (celkový obraz), dole co vyžaduje pozornost tento týden.</p></div>`;
 
   html+=heatmapHTML(subs);
+  html+=invitesHTML(subs);
   html+=attentionHTML(subs);
   return html;
+}
+
+// Byla pro daný měsíc odeslána pozvánka?
+function invitedIn(person,monthKey){
+  const r=(_store.records[userKey(person)]||{})[monthKey]||{};
+  return r._invited||null;
+}
+// Panel: komu už pozvánka na tento měsíc odešla a komu ještě ne.
+function invitesHTML(subs){
+  const mk=curMonth();
+  const dept=u=>(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||'';
+  const sent=[], todo=[];
+  subs.forEach(u=>{
+    const rec=(_store.records[userKey(u)]||{})[mk]||{};
+    const row={u, when:rec._invited||null, date:rec._planned||rec._held||'', time:rec._time||'', to:rec._invitedTo||''};
+    (row.when?sent:todo).push(row);
+  });
+  // bez pozvánky: nejdřív ti, co už termín mají — u nich pozvánka chybí nejvíc
+  todo.sort((a,b)=>(b.date?1:0)-(a.date?1:0)||a.u.localeCompare(b.u,'cs'));
+  sent.sort((a,b)=>String(b.when).localeCompare(String(a.when)));
+
+  let html=`<div class="panel"><div class="panel-head">Pozvánky na 1:1 — ${monthLabel(mk)} <span style="font-weight:400;opacity:.85">· odesláno ${sent.length}/${subs.length}</span></div><div class="panel-body att-body">`;
+
+  html+=`<div class="att-block"><div class="att-h att-h-navy">Bez pozvánky — ${todo.length}</div>`;
+  if(todo.length){
+    html+=`<table class="att-t"><tbody>`+todo.map(o=>
+      `<tr><td class="att-name"><b>${o.u.split(' ')[0]}</b> <span class="att-dept">${dept(o.u)}</span></td>
+        <td class="att-info">${o.date?`termín ${fmtDate(o.date)}${o.time?' '+o.time:''}`:'<span class="inv-none">bez termínu</span>'}</td>
+        <td class="att-badge"><button class="att-mail" onclick="openInviteModal('${escA(o.u)}','${mk}')">✉ Poslat pozvánku</button></td></tr>`).join('')+`</tbody></table>`;
+  } else html+=`<div class="att-empty">Všichni mají pozvánku na tento měsíc. 👍</div>`;
+  html+=`</div>`;
+
+  html+=`<div class="att-block"><div class="att-h att-h-navy">Pozvánka odeslána — ${sent.length}</div>`;
+  if(sent.length){
+    html+=`<table class="att-t"><tbody>`+sent.map(o=>
+      `<tr><td class="att-name"><b>${o.u.split(' ')[0]}</b> <span class="att-dept">${dept(o.u)}</span></td>
+        <td class="att-info">${o.date?`termín ${fmtDate(o.date)}${o.time?' '+o.time:''}`:''}${o.to?` <span class="att-dept">→ ${esc(o.to)}</span>`:''}</td>
+        <td class="att-badge"><span class="inv-sent">✉ ${fmtDate(o.when.slice(0,10))}</span>
+          <button class="att-mail" title="Poslat pozvánku znovu" onclick="openInviteModal('${escA(o.u)}','${mk}')">znovu</button></td></tr>`).join('')+`</tbody></table>`;
+  } else html+=`<div class="att-empty">Zatím žádná pozvánka na tento měsíc.</div>`;
+  html+=`</div>`;
+
+  return html+`</div></div>`;
 }
 
 // Řídící panel: po termínu / propadlé + otevřené úkoly + 3+ měsíce bez 1:1
@@ -1109,15 +1170,16 @@ function monthHeld(monthObj){
 // states: 'done' | 'planned' | 'missed' | 'empty'
 function cellState(u,key,todayStr){
   const rec=(_store.records[userKey(u)]||{})[key]||{};
+  const ext={time:rec._time||'', dur:Number(rec._dur)||0, invited:rec._invited||null};
   const held = rec._held || Object.keys(rec).some(k=>!k.startsWith('_') && String(rec[k]||'').trim()!=='');
-  if(held) return {state:'done', date: rec._held || null};
-  if(rec._noF2F) return {state:'excused', date: rec._planned || null, reason: rec._noF2F};
+  if(held) return Object.assign({state:'done', date: rec._held || null},ext);
+  if(rec._noF2F) return Object.assign({state:'excused', date: rec._planned || null, reason: rec._noF2F},ext);
   if(rec._planned){
     // planned but not held: missed if planned date already passed
-    if(rec._planned < todayStr) return {state:'missed', date: rec._planned};
-    return {state:'planned', date: rec._planned};
+    if(rec._planned < todayStr) return Object.assign({state:'missed', date: rec._planned},ext);
+    return Object.assign({state:'planned', date: rec._planned},ext);
   }
-  return {state:'empty', date:null};
+  return Object.assign({state:'empty', date:null},ext);
 }
 // Click cycles: empty → planned(ask date) → done(ask date) → empty
 function cycleCell(personName, key){
@@ -1131,10 +1193,7 @@ function cycleCell(personName, key){
     if(hasNotes){ cur[key]=rec; } else { delete cur[key]; }
     persist(`records/${k}`,cur); renderActive();
   };
-  const setPlanned=()=>openDatePicker(key, rec._planned||`${key}-15`, (chosen)=>{
-    if(!chosen) return; rec._planned=chosen; delete rec._held; rec._by=currentUser;
-    cur[key]=rec; persist(`records/${k}`,cur); renderActive();
-  });
+  const setPlanned=()=>openPlanModal(personName, key, rec._planned||null);
   const setHeld=()=>openDatePicker(key, rec._held||rec._planned||`${key}-15`, (chosen)=>{
     if(!chosen) return; rec._held=chosen; delete rec._planned; delete rec._noF2F;
     cur[key]=rec; persist(`records/${k}`,cur); renderActive();
@@ -1157,13 +1216,13 @@ function cycleCell(personName, key){
   } else if(rec._noF2F){
     cellMenu([
       {label:'✎ Upravit / smazat důvod', fn:setNoF2F},
-      {label:'📅 Naplánovat', fn:setPlanned},
+      {label:'📅 Naplánovat (datum a čas)', fn:setPlanned},
       {label:'✉ Poslat pozvánku e-mailem', fn:sendInvite},
       {label:'✓ Proběhlo', fn:setHeld}
     ]);
   } else if(rec._planned){
     cellMenu([
-      {label:'📅 Přeplánovat (jiné datum)', fn:setPlanned},
+      {label:'📅 Přeplánovat (datum a čas)', fn:setPlanned},
       {label:'✉ Poslat pozvánku e-mailem', fn:sendInvite},
       {label:'✓ Proběhlo', fn:setHeld},
       {label:'⊘ Neproběhne F2F — zapsat důvod', fn:setNoF2F},
@@ -1267,6 +1326,7 @@ function heatmapHTML(subs){
     const [ly,lm]=last.split('-').map(Number);
     return (year-ly)*12 + (curM-lm);
   }
+  const curKey=`${year}-${String(curM).padStart(2,'0')}`;
   function rowsFor(list){
     return list.map(u=>{
       let cells='';
@@ -1281,6 +1341,8 @@ function heatmapHTML(subs){
         else if(st.state==='missed'){ cls+=' hm-missed'; inner='✗'; tip+=` — neprovedeno v čas${st.date?' (plán '+fmtDate(st.date)+')':''}`; }
         else if(st.state==='planned'){ cls+=' hm-planned'; inner=st.date?dm(st.date):'📅'; tip+=` — naplánováno${st.date?' na '+fmtDate(st.date):''}`; }
         else { cls+=' hm-miss'; tip+=' — bez 1:1 (klikni pro naplánování)'; }
+        if(st.time) tip+=` v ${st.time}`;
+        if(st.invited){ cls+=' hm-inv'; tip+=` — ✉ pozvánka odeslána ${fmtDate(st.invited.slice(0,10))}`; }
         if((i+1)===curM) cls+=' hm-cur';
         cells+=`<td class="${cls}" onclick="cycleCell('${escA(u)}','${key}')" title="${tip}">${inner}</td>`;
       }
@@ -1292,7 +1354,7 @@ function heatmapHTML(subs){
       else gapBadge=`<span class="hm-gap hm-gap-bad">${gap} měs.</span>`;
       return `<tr>
         <td class="hm-name">${u.split(' ')[0]} <span class="hm-dept">${(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||''}</span>
-          <button class="hm-mail" title="Poslat pozvánku na 1:1 e-mailem" onclick="event.stopPropagation();openInviteModal('${escA(u)}','${year}-${String(curM).padStart(2,'0')}')">✉</button></td>
+          <button class="hm-mail ${invitedIn(u,curKey)?'hm-mail-on':''}" title="${invitedIn(u,curKey)?'Pozvánka na tento měsíc už odeslána — poslat znovu':'Poslat pozvánku na 1:1 e-mailem'}" onclick="event.stopPropagation();openInviteModal('${escA(u)}','${curKey}')">✉</button></td>
         ${cells}
         <td class="hm-gapcell">${gapBadge}</td>
       </tr>`;
@@ -1313,7 +1375,7 @@ function heatmapHTML(subs){
       <span><i class="hm-lg hm-planned"></i> naplánováno</span>
       <span><i class="hm-lg hm-missed"></i> neprovedeno v čas</span><span><i class="hm-lg hm-excused-lg"></i>neproběhlo (s důvodem)</span>
       <span><i class="hm-lg hm-miss"></i> bez 1:1</span>
-      <span class="hm-legend-gap">Klik na prázdnou buňku = naplánovat. Klik na naplánovanou/proběhlou = menu (přeplánovat / pozvánka e-mailem / proběhlo / zrušit). ✉ u jména = pozvánka na tento měsíc. Číslo = datum. <b style="color:var(--red)">Bez 1:1 3+ měs. = dohnat</b></span>
+      <span class="hm-legend-gap">Klik na prázdnou buňku = naplánovat. Klik na naplánovanou/proběhlou = menu (přeplánovat / pozvánka e-mailem / proběhlo / zrušit). ✉ u jména = pozvánka na tento měsíc (zeleně = už odeslaná), tečka v buňce = pozvánka odeslána. Číslo = datum. <b style="color:var(--red)">Bez 1:1 3+ měs. = dohnat</b></span>
     </div>
   </div></div>`;
 }
@@ -1340,6 +1402,123 @@ function setNext(personKey,dateStr){
 }
 function fmtMonth(ym){ const [y,m]=ym.split('-'); return `${m}/${y}`; }
 function fmtDate(d){ const [y,m,da]=d.split('-'); return `${da}.${m}.${y}`; }
+// ─── KOLIZE TERMÍNŮ ──────────────────────────────────────────────────
+// Naplánované 1:1 nesou datum (_planned), čas (_time) a délku (_dur).
+// Starší záznamy čas nemají — u těch hlásíme jen měkké "ten den už něco máš".
+const KEY_TO_USER=Object.fromEntries(Object.keys(USERS).map(u=>[userKey(u),u]));
+function toMin(t){ const [h,m]=String(t||'').split(':').map(Number); return (h*60+(m||0)); }
+function addMin(t,min){ const v=toMin(t)+Number(min||0); return `${pad2(Math.floor(v/60)%24)}:${pad2(v%60)}`; }
+
+// Všechna naplánovaná / proběhlá 1:1 napříč lidmi.
+function meetingSlots(){
+  const out=[];
+  const recs=_store.records||{};
+  Object.keys(recs).forEach(k=>{
+    const person=KEY_TO_USER[k]; if(!person) return;
+    const months=recs[k]||{};
+    Object.keys(months).forEach(mk=>{
+      if(!/^\d{4}-\d{2}$/.test(mk)) return;
+      const r=months[mk]||{};
+      const date=r._planned||r._held; if(!date) return;
+      out.push({key:k,person,date,time:r._time||'',dur:Number(r._dur)||45,held:!!r._held});
+    });
+  });
+  return out;
+}
+// Kolize pro daný termín. hard = překrývající se čas, soft = jen stejný den.
+function findConflicts(person,dateStr,timeStr,durMin){
+  if(!dateStr) return [];
+  const pk=userKey(person);
+  const s=timeStr?toMin(timeStr):null;
+  const e=(s===null)?null:s+(Number(durMin)||45);
+  return meetingSlots()
+    .filter(m=>m.key!==pk && m.date===dateStr)
+    .map(m=>{
+      if(s===null||!m.time) return Object.assign({hard:false},m);
+      const ms=toMin(m.time);
+      return Object.assign({hard: s < ms+m.dur && ms < e},m);
+    })
+    .sort((a,b)=>(b.hard-a.hard)||String(a.time).localeCompare(String(b.time)));
+}
+function conflictHTML(list,showOk){
+  const hard=list.filter(c=>c.hard), soft=list.filter(c=>!c.hard);
+  let h='';
+  if(hard.length) h+=`<div class="cf-box cf-hard"><b>⚠ Kolize — stejný termín i čas</b>`+hard.map(c=>
+    `<div>${esc(c.person)} · ${fmtDate(c.date)} ${c.time}–${addMin(c.time,c.dur)}${c.held?' (proběhlo)':''}</div>`).join('')+`</div>`;
+  if(soft.length) h+=`<div class="cf-box cf-soft"><b>Ten den máš i tato 1:1</b>`+soft.map(c=>
+    `<div>${esc(c.person)} · ${c.time?c.time+'–'+addMin(c.time,c.dur):'čas neuveden'}${c.held?' (proběhlo)':''}</div>`).join('')+`</div>`;
+  if(!h && showOk) h=`<div class="cf-box cf-ok">✓ Termín je volný — nikdo jiný v tu dobu 1:1 nemá.</div>`;
+  return h;
+}
+// Potvrzení před uložením/odesláním, když termín tvrdě koliduje.
+function confirmConflicts(list){
+  const hard=list.filter(c=>c.hard);
+  if(!hard.length) return true;
+  return confirm('Termín koliduje s:\n\n'+hard.map(c=>
+    `• ${c.person} — ${fmtDate(c.date)} ${c.time}–${addMin(c.time,c.dur)}`).join('\n')+'\n\nOpravdu pokračovat?');
+}
+
+// ─── NAPLÁNOVÁNÍ 1:1 (datum + čas + délka) ───────────────────────────
+let _plan=null; // {person, month}
+function openPlanModal(person, monthKey, presetDate){
+  const old=document.getElementById('plan-modal'); if(old) old.remove();
+  const k=userKey(person);
+  const mk=monthKey||curMonth();
+  const rec=(_store.records[k]||{})[mk]||{};
+  const meta=inviteMeta(person);
+  const date=presetDate||rec._planned||rec._held||(mk===curMonth()?todayISO():`${mk}-15`);
+  const time=rec._time||meta.time||'09:00';
+  const dur=INV_DUR.includes(Number(rec._dur))?Number(rec._dur):(INV_DUR.includes(Number(meta.dur))?Number(meta.dur):45);
+  _plan={person,month:mk};
+  const wrap=document.createElement('div');
+  wrap.id='plan-modal'; wrap.className='pw-overlay';
+  wrap.innerHTML=`<div class="pw-card plan-card">
+    <h3>📅 Naplánovat 1:1 — ${esc(person)}</h3>
+    <div class="pl-grid">
+      <div class="pw-field pl-full"><label>Datum</label><input type="date" id="pl-date" value="${date}"></div>
+      <div class="pw-field"><label>Čas</label><input type="time" id="pl-time" value="${time}"></div>
+      <div class="pw-field"><label>Délka</label>
+        <select id="pl-dur">${INV_DUR.map(d=>`<option value="${d}" ${d===dur?'selected':''}>${d} min</option>`).join('')}</select></div>
+    </div>
+    <div id="pl-warn"></div>
+    <div class="inv-actions">
+      <button class="btn btn-ghost btn-sm" id="pl-cancel">Zrušit</button>
+      <span class="inv-spacer"></span>
+      <button class="btn btn-ghost" id="pl-save">Uložit plán</button>
+      <button class="btn btn-primary" id="pl-invite">✉ Uložit a poslat pozvánku</button>
+    </div>
+  </div>`;
+  document.body.appendChild(wrap);
+  ['pl-date','pl-time','pl-dur'].forEach(id=>document.getElementById(id).addEventListener('change',planWarn));
+  document.getElementById('pl-cancel').onclick=closePlan;
+  document.getElementById('pl-save').onclick=()=>planSave(false);
+  document.getElementById('pl-invite').onclick=()=>planSave(true);
+  wrap.addEventListener('mousedown',e=>{ if(e.target===wrap) closePlan(); });
+  planWarn();
+}
+function closePlan(){ const w=document.getElementById('plan-modal'); if(w) w.remove(); _plan=null; }
+function planFields(){ return {date:val('pl-date'),time:val('pl-time')||'09:00',dur:Number(val('pl-dur'))||45}; }
+function planWarn(){
+  if(!_plan) return;
+  const f=planFields();
+  document.getElementById('pl-warn').innerHTML=f.date?conflictHTML(findConflicts(_plan.person,f.date,f.time,f.dur),true):'';
+}
+function planSave(alsoInvite){
+  if(!_plan) return;
+  const f=planFields();
+  if(!f.date){ alert('Vyber datum.'); return; }
+  if(!confirmConflicts(findConflicts(_plan.person,f.date,f.time,f.dur))) return;
+  const person=_plan.person, k=userKey(person), mk=f.date.slice(0,7);
+  const cur=_store.records[k]||{};
+  const rec=cur[mk]||{};
+  rec._planned=f.date; rec._time=f.time; rec._dur=f.dur; rec._by=currentUser;
+  delete rec._held;
+  cur[mk]=rec; _store.records[k]=cur;
+  persist(`records/${k}`,cur);
+  closePlan(); renderActive();
+  if(alsoInvite) openInviteModal(person,mk,f.date);
+}
+
 // ─── E-MAILOVÁ POZVÁNKA NA 1:1 ───────────────────────────────────────
 // Otevře editor pozvánky (příjemce / termín / text), pak předá hotový
 // mail do klienta přes mailto: — případně stáhne .ics do kalendáře.
@@ -1414,8 +1593,9 @@ function openInviteModal(person, monthKey, presetDate){
   const meta=inviteMeta(person);
   let date=presetDate||rec._planned||rec._held||'';
   if(!date) date=(mk===curMonth())?todayISO():`${mk}-15`;
-  const time=meta.time||'09:00';
-  const dur=INV_DUR.includes(Number(meta.dur))?Number(meta.dur):45;
+  const time=rec._time||meta.time||'09:00';
+  const dur=INV_DUR.includes(Number(rec._dur))?Number(rec._dur)
+    :(INV_DUR.includes(Number(meta.dur))?Number(meta.dur):45);
   const place=meta.place||'';
   const tpl=inviteTemplate(person,date,time,dur,place);
   _inv={person,month:mk,lastSubject:tpl.subject,lastBody:tpl.body};
@@ -1438,6 +1618,7 @@ function openInviteModal(person, monthKey, presetDate){
     <div class="pw-field"><label>Předmět</label><input type="text" id="inv-subject" value="${escA(tpl.subject)}"></div>
     <div class="pw-field"><label>Zpráva</label>
       <textarea class="q-input inv-body" id="inv-body">${esc(tpl.body)}</textarea></div>
+    <div id="inv-warn"></div>
     <label class="inv-check"><input type="checkbox" id="inv-plan" checked> Zapsat termín do plánu 1:1 (heat mapa)</label>
     <div class="inv-actions">
       <button class="btn btn-ghost btn-sm" id="inv-reset" title="Vrátit původní text ze šablony">↻ Text</button>
@@ -1459,6 +1640,7 @@ function openInviteModal(person, monthKey, presetDate){
   document.getElementById('inv-cancel').onclick=closeInvite;
   document.getElementById('inv-send').onclick=inviteSend;
   wrap.addEventListener('mousedown',e=>{ if(e.target===wrap) closeInvite(); });
+  inviteWarn();
   document.getElementById('inv-to').focus();
 }
 function closeInvite(){ const w=document.getElementById('invite-modal'); if(w) w.remove(); _inv=null; }
@@ -1486,6 +1668,12 @@ function inviteRefresh(force){
   if(force===true || same(sEl.value,_inv.lastSubject)) sEl.value=tpl.subject;
   if(force===true || same(bEl.value,_inv.lastBody)) bEl.value=tpl.body;
   _inv.lastSubject=tpl.subject; _inv.lastBody=tpl.body;
+  inviteWarn();
+}
+function inviteWarn(){
+  const box=document.getElementById('inv-warn'); if(!box||!_inv) return;
+  const f=inviteFields();
+  box.innerHTML=f.date?conflictHTML(findConflicts(_inv.person,f.date,f.time,f.dur),true):'';
 }
 function inviteNote(msg){
   const n=document.getElementById('inv-note'); if(!n) return;
@@ -1493,16 +1681,21 @@ function inviteNote(msg){
   setTimeout(()=>n.classList.remove('show'),1800);
 }
 // Zapíše termín do records jako naplánované 1:1 + zapamatuje si kontakt.
+// Zapamatuje kontakt, zaeviduje odeslanou pozvánku a (volitelně) naplánuje termín.
 function inviteRemember(f){
-  if(!_inv) return;
+  if(!_inv||!f.date) return;
   saveInviteMeta(_inv.person,{email:f.to,time:f.time,dur:f.dur,place:f.place});
-  const chk=document.getElementById('inv-plan');
-  if(!chk||!chk.checked||!f.date) return;
   const k=userKey(_inv.person), mk=f.date.slice(0,7);
   const cur=_store.records[k]||{};
   const rec=cur[mk]||{};
-  if(rec._held) return; // proběhlé 1:1 nepřepisujeme
-  rec._planned=f.date; delete rec._noF2F; rec._by=currentUser;
+  // evidence "pozvánka odeslána" se zapisuje vždy — i když termín do plánu nezapisujeme
+  rec._invited=new Date().toISOString();
+  rec._invitedTo=f.to; rec._invitedBy=currentUser;
+  const chk=document.getElementById('inv-plan');
+  if(chk&&chk.checked&&!rec._held){ // proběhlé 1:1 nepřepisujeme
+    rec._planned=f.date; rec._time=f.time; rec._dur=f.dur;
+    delete rec._noF2F; rec._by=currentUser;
+  }
   cur[mk]=rec;
   _store.records[k]=cur;
   persist(`records/${k}`,cur);
@@ -1511,6 +1704,7 @@ function inviteRemember(f){
 function inviteSend(){
   const f=inviteFields();
   if(!f.date){ alert('Vyber datum meetingu.'); return; }
+  if(!confirmConflicts(findConflicts(_inv.person,f.date,f.time,f.dur))) return;
   inviteRemember(f);
   const href=`mailto:${encodeURIComponent(f.to).replace(/%40/g,'@').replace(/%2C/gi,',')}`
     +`?subject=${encodeURIComponent(f.subject)}&body=${encodeURIComponent(f.body.replace(/\r?\n/g,'\r\n'))}`;
@@ -1547,6 +1741,7 @@ function icsLocal(d){
 function inviteIcs(){
   const f=inviteFields();
   if(!f.date||!_inv){ alert('Vyber datum meetingu.'); return; }
+  if(!confirmConflicts(findConflicts(_inv.person,f.date,f.time,f.dur))) return;
   inviteRemember(f);
   const [y,m,d]=f.date.split('-').map(Number);
   const [hh,mm]=f.time.split(':').map(Number);
