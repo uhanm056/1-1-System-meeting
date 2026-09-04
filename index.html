@@ -79,7 +79,7 @@ body{font-family:'IBM Plex Sans','Segoe UI',Arial,sans-serif;background:var(--bg
 .login-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}
 
 .wrap{max-width:1100px;margin:0 auto;padding:24px 32px}
-.wrap.wide{max-width:1780px;padding:20px 28px}
+.wrap.wide{max-width:none;padding:20px 28px}
 .tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(31,56,100,.04);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tab-bar::-webkit-scrollbar{height:0}
 .tab-group{display:flex;background:#EEF2F7;border-radius:10px;padding:4px;gap:2px;flex:0 0 auto}
@@ -355,7 +355,6 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
      schůzkami jinak sebere celou obrazovku a roluje uvnitř sebe. */
   #app.onepage .dn-col-w{flex:0 0 auto;max-height:46%;min-height:0}
   #app.onepage .dn-main{flex:1 1 auto;min-height:0;align-items:stretch;flex-wrap:nowrap}
-  #app.onepage .dn-chart{max-height:148px}
   #app.onepage .dn-tk{gap:10px}
   #app.onepage .dn-tk-rows{gap:6px}
   #app.onepage .dn-tk-split{padding-top:9px;gap:6px}
@@ -1836,7 +1835,7 @@ function dnRhythmHTML(subs){
     const r=(_store.records[userKey(u)]||{})[m]||{};
     return !!(r._held||recordFilled(u,m));
   }).length);
-  const x0=34,x1=372,yTop=12,yBase=130,band=(x1-x0)/6,bw=30;
+  const x0=40,x1=512,yTop=14,yBase=112,band=(x1-x0)/6,bw=36;
   const yOf=v=>yBase-(v/target)*(yBase-yTop);
   const half=Math.round(target/2);
   let bars='',nums='',labs='';
@@ -1846,23 +1845,23 @@ function dnRhythmHTML(subs){
     const fill=running?'#C6D2E2':(v<target*0.6?'#DE350B':'#2E75B6');
     bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="3" fill="${fill}"></rect>`;
     nums+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" fill="${running?'#6B7280':(v<target*0.6?'#B0270A':'#0F172A')}">${v}</text>`;
-    labs+=`<text x="${(x+bw/2).toFixed(1)}" y="146">${MN_SHORT[+m.split('-')[1]-1]}</text>`
-        + (running?`<text x="${(x+bw/2).toFixed(1)}" y="159" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#6B7280">běží</text>`:'');
+    labs+=`<text x="${(x+bw/2).toFixed(1)}" y="128">${MN_SHORT[+m.split('-')[1]-1]}</text>`
+        + (running?`<text x="${(x+bw/2).toFixed(1)}" y="141" font-family="'IBM Plex Mono',monospace" font-size="9" fill="#6B7280">běží</text>`:'');
   });
   const closed=vals.slice(0,5).reduce((a,v)=>a+(target-v),0);
   return `<div class="panel"><div class="panel-head">Rytmus týmu
     <span style="font-weight:400;opacity:.85">· proběhlá 1:1 za měsíc</span></div><div class="panel-body">
-    <svg class="dn-chart" viewBox="0 0 380 168" role="img"
+    <svg class="dn-chart" viewBox="0 0 520 150" role="img"
       aria-label="Proběhlá 1:1 po měsících: ${months.map((m,i)=>MN_SHORT[+m.split('-')[1]-1]+' '+vals[i]).join(', ')}. Cíl ${target}.">
-      <line x1="34" y1="${yBase}" x2="372" y2="${yBase}" stroke="#A8BBD0" stroke-width="1"></line>
-      <line x1="34" y1="${yOf(half).toFixed(1)}" x2="372" y2="${yOf(half).toFixed(1)}" stroke="#D5DEE9" stroke-width="1" stroke-dasharray="3 3"></line>
-      <line x1="34" y1="${yTop}" x2="372" y2="${yTop}" stroke="#E8A020" stroke-width="1.5" stroke-dasharray="5 4"></line>
+      <line x1="40" y1="${yBase}" x2="512" y2="${yBase}" stroke="#A8BBD0" stroke-width="1"></line>
+      <line x1="40" y1="${yOf(half).toFixed(1)}" x2="512" y2="${yOf(half).toFixed(1)}" stroke="#D5DEE9" stroke-width="1" stroke-dasharray="3 3"></line>
+      <line x1="40" y1="${yTop}" x2="512" y2="${yTop}" stroke="#E8A020" stroke-width="1.5" stroke-dasharray="5 4"></line>
       <g font-family="'IBM Plex Mono',monospace" font-size="10" text-anchor="end">
-        <text x="28" y="${yBase+4}" fill="#6B7280">0</text>
-        <text x="28" y="${(yOf(half)+4).toFixed(1)}" fill="#6B7280">${half}</text>
-        <text x="28" y="${yTop+4}" fill="#8A5210">${target}</text>
+        <text x="33" y="${yBase+4}" fill="#6B7280">0</text>
+        <text x="33" y="${(yOf(half)+4).toFixed(1)}" fill="#6B7280">${half}</text>
+        <text x="33" y="${yTop+4}" fill="#8A5210">${target}</text>
       </g>
-      <text x="372" y="8" text-anchor="end" fill="#8A5210" font-family="'IBM Plex Mono',monospace" font-size="9.5" font-weight="600">cíl — celý tým</text>
+      <text x="512" y="9" text-anchor="end" fill="#8A5210" font-family="'IBM Plex Mono',monospace" font-size="9.5" font-weight="600">cíl — celý tým</text>
       ${bars}
       <g font-family="'IBM Plex Mono',monospace" font-size="11" font-weight="700" text-anchor="middle">${nums}</g>
       <g fill="#4A6080" font-family="'IBM Plex Sans',sans-serif" font-size="11" text-anchor="middle">${labs}</g>
