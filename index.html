@@ -250,7 +250,7 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .dn-v-navy{color:var(--dark);background:var(--light)}
 .dn-v-ok{color:#0B6B47;background:#E7F6EF}
 .dn-week-scroll{overflow-x:auto}
-.dn-week{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:9px;min-width:720px;align-items:start}
+.dn-week{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:9px;min-width:700px;align-items:start}
 .dn-day{background:var(--bg-input);border:1px solid var(--border);border-radius:9px;padding:9px;display:flex;flex-direction:column;gap:8px;min-height:96px}
 .dn-day.free{background:transparent;border-style:dashed}
 .dn-day.today{background:#fff;border-color:var(--dark);box-shadow:inset 0 3px 0 var(--dark)}
@@ -276,8 +276,8 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .dn-acts{display:grid;grid-auto-flow:row;grid-template-columns:1fr}
 .dn-act{display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:0 13px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .dn-act:last-child{border-bottom:none}
-@media(min-width:1280px){
-  .dn-acts.two{grid-auto-flow:column;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:26px}
+@media(min-width:1440px){
+  .dn-acts.two{grid-auto-flow:column;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:30px}
   .dn-acts.two .dn-act{border-bottom:1px solid var(--border)}
 }
 .dn-bar{width:3px;min-height:34px;border-radius:2px;align-self:stretch}
@@ -302,6 +302,37 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .dn-ok{font-size:12.5px;color:var(--muted);padding:6px 2px}
 @media(max-width:820px){.dn-hero{grid-template-columns:1fr;gap:17px}.dn-stats{border-left:none;border-top:1px solid var(--border);padding-left:0;padding-top:15px}}
 @media(max-width:560px){.dn-act{grid-template-columns:3px minmax(0,1fr);row-gap:9px}.dn-btn{grid-column:2;justify-self:start}}
+/* Na širokém displeji je místa dost — obsah buněk se zvětší, ať se nedrobí */
+@media(min-width:1440px){
+  .dn .panel-head{font-size:15px;padding:13px 22px}
+  .dn .panel-body{padding:18px 20px}
+  .dn-num{font-size:48px}
+  .dn-txt{font-size:16px}
+  .dn-key{font-size:13px}
+  .dn-meter{height:13px}
+  .dn-tile{padding:12px 15px}
+  .dn-tile .n{font-size:28px}
+  .dn-tile .l{font-size:12.5px}
+  .dn-week{gap:11px}
+  .dn-day{padding:12px;min-height:118px;gap:10px}
+  .dn-day-n{font-size:13px}
+  .dn-day-d{font-size:12px}
+  .dn-slot{padding:11px 13px;gap:6px;border-left-width:4px}
+  .dn-slot-t{font-size:14px}
+  .dn-slot-n{font-size:16px}
+  .dn-slot-r{font-size:12px}
+  .dn-chip{font-size:11.5px;padding:3px 8px}
+  .dn-day-empty{font-size:12.5px}
+  .dn-act{padding:12px 0}
+  .dn-kind{font-size:10.5px}
+  .dn-act-t{font-size:15px}
+  .dn-act-m{font-size:12px}
+  .dn-btn{font-size:13px;padding:7px 14px}
+  .dn-tk-row{font-size:14px}
+  .dn-tk-bar{height:15px}
+  .dn-cap{font-size:12.5px}
+  .dn-title h2{font-size:22px}
+}
 
 /* heat mapa */
 .hm-scroll{overflow-x:auto}
@@ -1553,9 +1584,9 @@ function renderDnes(){
       <div class="dn-title"><h2>Dnes — ${monthLabel(mk)}</h2>
         <span class="sub">${CZ_DAYS[d.getDay()]} ${d.getDate()}. ${d.getMonth()+1}. ${d.getFullYear()} · ${esc(USERS[currentUser].label)}</span></div>
       ${dnHeroHTML(subs,mk,c)}
+      ${dnWeekHTML(subs,today)}
       <div class="dn-main">
         <div class="dn-col dn-col-l">
-          ${dnWeekHTML(subs,today)}
           ${dnActionsHTML(subs,mk,today,c)}
         </div>
         <div class="dn-col dn-col-r">
@@ -1738,7 +1769,7 @@ function dnActionsHTML(subs,mk,today,c){
     `${monthLabel(mk)} · zatím bez naplánovaného 1:1`,
     'Zobrazit heat mapu',`switchTab('overview')`);
 
-  const CAP=8;
+  const CAP=10;
   const hidden=Math.max(0,rows.length-CAP);
   const shown=_dnAll?rows:rows.slice(0,CAP);
   const more=hidden?`<div style="padding-top:11px"><button class="dn-btn" onclick="dnToggleAll()">${_dnAll?'Zobrazit jen nejnaléhavějších '+CAP:'Zobrazit i zbývajících '+hidden}</button></div>`:'';
