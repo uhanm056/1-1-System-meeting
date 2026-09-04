@@ -214,14 +214,18 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 @media(max-width:560px){.pl-grid{grid-template-columns:1fr}}
 /* ── Tab DNES (úvodní přehled OM) ── */
 .dn{display:flex;flex-direction:column;gap:13px}
-.dn .panel{margin-bottom:0}
-.dn-main{display:flex;flex-direction:column;gap:13px}
-.dn-col{display:flex;flex-direction:column;gap:13px;min-width:0}
+.dn .panel{margin-bottom:0;display:flex;flex-direction:column}
+.dn .panel-head{flex:0 0 auto}
+.dn-main{display:flex;flex-wrap:wrap;gap:13px}
+.dn-col{display:flex;flex-direction:column;gap:13px;min-width:0;flex:1 1 100%}
+/* střední šířky: týden přes celou šířku, pod ním akce a vpravo graf s úkoly */
 @media(min-width:1150px){
-  .dn-main{flex-direction:row;align-items:flex-start}
+  .dn-main{align-items:flex-start}
+  .dn-col-w{flex:1 1 100%}
   .dn-col-l{flex:1 1 0}
   .dn-col-r{flex:0 0 clamp(340px,26vw,440px)}
 }
+
 /* titulek místo velkého gradientního pruhu — na dashboardu jen ubíral výšku */
 .dn-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:0 2px 2px}
 .dn-title h2{font-size:19px;font-weight:700;color:var(--dark);letter-spacing:-.01em}
@@ -276,7 +280,7 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .dn-acts{display:grid;grid-auto-flow:row;grid-template-columns:1fr}
 .dn-act{display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:0 13px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .dn-act:last-child{border-bottom:none}
-@media(min-width:1440px){
+@media(min-width:1150px) and (max-width:1439px){
   .dn-acts.two{grid-auto-flow:column;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:30px}
   .dn-acts.two .dn-act{border-bottom:1px solid var(--border)}
 }
@@ -332,6 +336,34 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
   .dn-tk-bar{height:15px}
   .dn-cap{font-size:12.5px}
   .dn-title h2{font-size:22px}
+}
+/* Široké: tři sloupce vedle sebe, týden svisle jako agenda.
+   Musí stát až za základními pravidly .dn-week / .dn-day, jinak je přebijí. */
+@media(min-width:1440px){
+  .dn-col-w{flex:1.15 1 0}
+  .dn-col-l{flex:1.9 1 0}
+  .dn-col-r{flex:1.25 1 0}
+  .dn-week-scroll{overflow:visible}
+  .dn-week{grid-template-columns:1fr;min-width:0;gap:7px;align-items:stretch}
+  .dn-day{min-height:0}
+  .dn-day.free{flex-direction:row;align-items:baseline;gap:12px;padding:8px 12px}
+  .dn-day.free .dn-day-h{flex:1 1 auto}
+  .dn-day.free .dn-day-empty{margin:0;flex:0 0 auto}
+  .dn-acts.two{grid-auto-flow:row;grid-template-columns:1fr;grid-template-rows:none!important}
+}
+/* ONE-PAGER: stránka sama neroluje, přeplněné panely rolují uvnitř sebe. */
+@media(min-width:1440px) and (min-height:700px){
+  #app.onepage{display:flex!important;flex-direction:column;height:100dvh;overflow:hidden}
+  #app.onepage .header{position:static}
+  #app.onepage .wrap.wide{flex:1 1 auto;width:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  #app.onepage .dn{flex:1 1 auto;min-height:0}
+  #app.onepage .dn-main{flex:1 1 auto;min-height:0;align-items:stretch;flex-wrap:nowrap}
+  #app.onepage .dn-col{min-height:0}
+  #app.onepage .dn .panel{min-height:0;flex:0 1 auto}
+  #app.onepage .dn .panel-body{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  #app.onepage .dn .panel-body::-webkit-scrollbar{width:9px}
+  #app.onepage .dn .panel-body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px}
+  #app.onepage .dn .panel-body::-webkit-scrollbar-track{background:transparent}
 }
 
 /* heat mapa */
@@ -888,6 +920,7 @@ function renderActive(){
   if(!currentUser) return;
   const c=document.getElementById('content');
   c.classList.toggle('wide',activeTab==='dnes');
+  document.getElementById('app').classList.toggle('onepage',activeTab==='dnes');
   if(activeTab==='dnes') c.innerHTML=renderDnes();
   else if(activeTab==='prep') c.innerHTML=renderPrep();
   else if(activeTab==='record') c.innerHTML=renderRecord();
@@ -1584,11 +1617,9 @@ function renderDnes(){
       <div class="dn-title"><h2>Dnes — ${monthLabel(mk)}</h2>
         <span class="sub">${CZ_DAYS[d.getDay()]} ${d.getDate()}. ${d.getMonth()+1}. ${d.getFullYear()} · ${esc(USERS[currentUser].label)}</span></div>
       ${dnHeroHTML(subs,mk,c)}
-      ${dnWeekHTML(subs,today)}
       <div class="dn-main">
-        <div class="dn-col dn-col-l">
-          ${dnActionsHTML(subs,mk,today,c)}
-        </div>
+        <div class="dn-col dn-col-w">${dnWeekHTML(subs,today)}</div>
+        <div class="dn-col dn-col-l">${dnActionsHTML(subs,mk,today,c)}</div>
         <div class="dn-col dn-col-r">
           ${dnRhythmHTML(subs)}
           ${dnTasksHTML(subs,today)}
