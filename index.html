@@ -353,7 +353,14 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .ios-hint b{color:var(--accent)}
 .ios-hint .x{position:absolute;top:8px;right:12px;cursor:pointer;opacity:.7;font-size:16px}
 
-@media(max-width:680px){.wrap{padding:16px}.wrap.wide{padding:16px}.meta-grid{grid-template-columns:1fr}.header{padding:12px 16px}.tab-bar{padding:10px 16px}.tab{padding:8px 14px}}
+@media(max-width:680px){.wrap{padding:16px}.wrap.wide{padding:16px}.meta-grid{grid-template-columns:1fr}.header{padding:12px 16px}.tab-bar{padding:10px 16px}.tab{padding:8px 14px}
+  /* na úzkém displeji se hlavička nevešla a přetékala vodorovně */
+  .header{flex-wrap:wrap;gap:8px}
+  .header-left{min-width:0;flex:1 1 auto}
+  .header-left h1{font-size:16px}
+  .header-right{flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:0}
+  .current-user-badge{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 
 /* ═══ REDESIGN C: Vivid ═══ */
 :root{
