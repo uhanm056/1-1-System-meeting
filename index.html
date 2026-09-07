@@ -376,6 +376,30 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
   .ov-h{font-size:12.5px}
   .wrap.wide .hm-cell{height:32px;line-height:32px;font-size:11px}
 }
+/* ── Úkoly: dlaždice na osobu ── */
+.tk-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+@media(min-width:780px){.tk-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:1150px){.tk-tiles{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(min-width:1600px){.tk-tiles{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.tk-tile{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;
+  font-family:inherit;cursor:pointer;background:var(--card);border:1.5px solid var(--border);
+  border-radius:10px;padding:10px 13px;box-shadow:var(--shadow-sm);
+  transition:border-color .15s,box-shadow .15s,background .15s}
+.tk-tile:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
+.tk-tile.on{border-color:var(--dark);background:linear-gradient(135deg,#1F3864,#2E5090)}
+.tk-me{border-style:dashed}
+.tk-nm{display:flex;flex-direction:column;min-width:0}
+.tk-nm b{font-size:13.5px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-nm i{font-size:10.5px;font-style:normal;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-cnt{display:flex;flex-direction:column;align-items:flex-end;flex:none;font-family:'IBM Plex Mono',monospace}
+.tk-cnt b{font-size:20px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.tk-cnt i{font-size:9.5px;font-style:normal;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.tk-tile.on .tk-nm b,.tk-tile.on .tk-cnt b{color:#fff}
+.tk-tile.on .tk-nm i,.tk-tile.on .tk-cnt i{color:rgba(255,255,255,.75)}
+@media(min-width:1440px){
+  .tk-nm b{font-size:14.5px}
+  .tk-cnt b{font-size:22px}
+}
 /* ONE-PAGER: stránka sama neroluje, přeplněné panely rolují uvnitř sebe. */
 @media(min-width:1440px) and (min-height:700px){
   #app.onepage{display:flex!important;flex-direction:column;height:100dvh;overflow:hidden}
@@ -409,7 +433,7 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
   #app.onepage .dn-cap{margin-top:7px}
   #app.onepage .ov-body{flex:1 1 auto;min-height:0}
   #app.onepage .ov-body > .panel{flex:0 1 auto;min-height:0}
-  #app.onepage .ov-tiles{flex:0 0 auto}
+  #app.onepage .ov-tiles,#app.onepage .tk-tiles{flex:0 0 auto}
   #app.onepage .dn .panel-body{min-height:0;overflow-y:auto;overscroll-behavior:contain}
   #app.onepage .dn .panel-body::-webkit-scrollbar{width:9px}
   #app.onepage .dn .panel-body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px}
@@ -969,7 +993,7 @@ function autoGrow(el){ el.style.height='auto'; el.style.height=(el.scrollHeight+
 function renderActive(){
   if(!currentUser) return;
   const c=document.getElementById('content');
-  const dash=(activeTab==='dnes'||activeTab==='overview');
+  const dash=(activeTab==='dnes'||activeTab==='overview'||activeTab==='tasks');
   c.classList.toggle('wide',dash);
   document.getElementById('app').classList.toggle('onepage',dash);
   if(activeTab==='dnes') c.innerHTML=renderDnes();
@@ -1161,14 +1185,34 @@ function toggleHeld(personName){
 }
 
 // ─── TASKS TAB ───────────────────────────────────────────────────────
+// Výběr osoby na kartě Úkoly — prázdný řetězec znamená „moje úkoly".
+function tkPick(u){ _viewUser=u||null; renderActive(); }
+// Dlaždice osoby: jméno, role a stav jejích otevřených úkolů.
+function tasksTile(person,sel,isMe){
+  const today=todayISO();
+  const open=tasksOf(person).filter(t=>t.title&&t.status!=='Hotovo');
+  const late=open.filter(t=>t.due&&t.due<today).length;
+  const blocked=open.filter(t=>t.status==='Blokováno').length;
+  const sev=late?'red':(blocked?'amber':(open.length?'navy':'ok'));
+  const note=late?`${late} po termínu`:(blocked?`${blocked} blokováno`:(open.length?'otevřené':'žádné'));
+  const role=isMe?'moje úkoly':(deptOf(person)||ROLE_LABEL[USERS[person].roleType]||'');
+  return `<button class="tk-tile ${sel?'on':''} ${isMe?'tk-me':''}" onclick="tkPick('${isMe?'':escA(person)}')">
+    <span class="tk-nm"><b>${esc(shortName(person))}</b><i>${esc(role)}</i></span>
+    <span class="tk-cnt"><b class="ov-n-${sev}">${open.length}</b><i>${esc(note)}</i></span></button>`;
+}
 function renderTasks(){
   const tu=targetUser();
-  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const isOM=IS_OM(currentUser);
   const list=(_store.tasks[userKey(tu)]||[]).filter(Boolean);
-  let html=omSelector();
-  html+=`<div class="intro"><h2>Akční úkoly — ${USERS[tu].label}</h2>
-    <p>Co bylo dohodnuto. Max. doporučeno 5 aktivních. Aktualizuj stav průběžně.</p></div>`;
-  html+=`<div class="panel"><div class="panel-head tasks">Úkoly <button class="btn btn-ghost btn-sm" onclick="addTask()">+ Přidat úkol</button></div><div class="panel-body">`;
+  let html=`<div class="dn ov">`;
+  html+=`<div class="dn-title"><h2>Akční úkoly — ${esc(USERS[tu].label)}</h2>
+    <span class="sub">Co bylo dohodnuto. Max. doporučeno 5 aktivních.</span></div>`;
+  if(isOM){
+    html+=`<div class="tk-tiles">${tasksTile(currentUser,tu===currentUser,true)}`
+      +subordinates().map(u=>tasksTile(u,tu===u,false)).join('')+`</div>`;
+  }
+  html+=`<div class="ov-body">`;
+  html+=`<div class="panel"><div class="panel-head tasks">Úkoly — ${esc(shortName(tu))} <button class="btn btn-ghost btn-sm" onclick="addTask()">+ Přidat úkol</button></div><div class="panel-body">`;
   if(!list.length){ html+=`<div class="empty">Zatím žádné úkoly. Přidej první.</div>`; }
   else{
     html+=`<table><thead><tr><th style="width:48%">Úkol</th><th>Owner</th><th>Termín</th><th>Stav</th><th></th></tr></thead><tbody>`;
@@ -1185,7 +1229,7 @@ function renderTasks(){
     });
     html+=`</tbody></table>`;
   }
-  html+=`</div></div>`;
+  html+=`</div></div></div></div>`;
   return html;
 }
 function tasksOf(tu){ return (_store.tasks[userKey(tu)]||[]).filter(Boolean); }
