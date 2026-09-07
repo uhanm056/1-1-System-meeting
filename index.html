@@ -396,6 +396,17 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .tk-cnt i{font-size:9.5px;font-style:normal;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .tk-tile.on .tk-nm b,.tk-tile.on .tk-cnt b{color:#fff}
 .tk-tile.on .tk-nm i,.tk-tile.on .tk-cnt i{color:rgba(255,255,255,.75)}
+.tk-tiles.pt-tiles{grid-template-columns:repeat(auto-fit,minmax(178px,1fr))}
+.pt-tiles .tk-tile{flex-direction:column;align-items:flex-start;gap:7px}
+.pt-tiles .tk-nm{width:100%}
+.tk-st{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;flex:none;font-family:'IBM Plex Mono',monospace}
+.tk-st-ok{color:#0B6B47;background:#E7F6EF;border:1px solid #B7E2CE}
+.tk-st-warn{color:#8A5210;background:#FEF0DC;border:1px solid #F3CE96}
+.tk-st-navy{color:var(--dark);background:var(--light);border:1px solid var(--border-strong)}
+.tk-st-muted{color:var(--muted);background:var(--bg-input);border:1px solid var(--border)}
+.tk-tile.on .tk-st{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.32);color:#fff}
+.pt-who{font-size:13px;color:var(--text-secondary);margin:2px 2px 12px}
+.pt-who b{color:var(--dark);font-family:'IBM Plex Mono',monospace}
 @media(min-width:1440px){
   .tk-nm b{font-size:14.5px}
   .tk-cnt b{font-size:22px}
@@ -1046,17 +1057,21 @@ function monthSelector(tu,store){
 
 // ─── PREP TAB ────────────────────────────────────────────────────────
 function renderPrep(){
-  const tu=targetUser();
-  if(IS_OM(currentUser) && !tu) return omSelector()+`<div class="empty">Vyber podřízeného pro zobrazení jeho přípravy.</div>`;
+  const isOM=IS_OM(currentUser);
+  const tu=isOM?_viewUser:currentUser;
+  const head=`<div class="dn-title"><h2>Příprava na 1:1 — ${monthLabel(curMonth())}</h2>
+    <span class="sub">Vyplň PŘED schůzkou. Konkrétní body: jména, čísla, situace.</span></div>`;
+  if(isOM && !tu) return head+personTiles('prep',null)+pickPrompt('jeho příprava');
   const rt=USERS[tu].roleType;
-  if(!QSETS[rt]) return omSelector()+`<div class="empty">Pro tuto roli není definovaná příprava.</div>`;
+  if(!QSETS[rt]) return head+personTiles('prep',tu)+`<div class="panel"><div class="panel-body"><div class="empty">Pro tuto roli není definovaná příprava.</div></div></div>`;
   const month=viewMonthFor(tu,_store.prep);
   const isArchive=month!==curMonth();
   const saved=(_store.prep[userKey(tu)]&&_store.prep[userKey(tu)][month])||{};
   const readOnly=(IS_OM(currentUser)&&tu!==currentUser)||isArchive;
-  let html=omSelector()+monthSelector(tu,_store.prep);
-  html+=`<div class="intro"><h2>Příprava na 1:1 — ${USERS[tu].label}</h2>
+  let html=(isOM?head+personTiles('prep',tu):'')+monthSelector(tu,_store.prep);
+  if(!isOM) html+=`<div class="intro"><h2>Příprava na 1:1 — ${esc(USERS[tu].label)}</h2>
     <p>Vyplň PŘED schůzkou. Promysli si otázky a napiš si konkrétní body (jména, čísla, situace). Měsíc: <b>${month}</b></p></div>`;
+  else html+=`<div class="pt-who">${esc(USERS[tu].label)} · <b>${monthLabel(month)}</b></div>`;
   if(readOnly) html+=`<div class="priv-note">Prohlížíš přípravu podřízeného (jen pro čtení).</div>`;
   if(IS_OM(currentUser) && tu!==currentUser){
     html+=`<div class="inv-bar"><button class="btn btn-ghost btn-sm" onclick="openInviteModal('${escA(tu)}','${month}')">✉ Poslat pozvánku na 1:1</button></div>`;
@@ -1097,14 +1112,18 @@ function savePrep(rt){
 // ─── RECORD TAB ──────────────────────────────────────────────────────
 function renderRecord(){
   if(!IS_OM(currentUser)) return `<div class="empty">Tato sekce je dostupná jen pro Operations Managera.</div>`;
-  const tu=targetUser();
-  if(IS_OM(currentUser)&&!tu) return omSelector()+`<div class="empty">Vyber podřízeného.</div>`;
+  const tu=_viewUser;
+  const head=`<div class="dn-title"><h2>Záznam 1:1 — ${monthLabel(curMonth())}</h2>
+    <span class="sub">Zápis ze schůzky. Vyplňuje manažer během / po 1:1.</span></div>`;
+  // Bez vybrané osoby dřív spadl QSETS[rt].forEach — OM nemá sadu otázek.
+  if(!tu) return head+personTiles('record',null)+pickPrompt('jeho záznam');
   const rt=USERS[tu].roleType;
+  if(!QSETS[rt]) return head+personTiles('record',tu)+`<div class="panel"><div class="panel-body"><div class="empty">Pro tuto roli není definovaný záznam.</div></div></div>`;
   const month=viewMonthFor(tu,_store.records);
   const isArchive=month!==curMonth();
   const saved=(_store.records[userKey(tu)]&&_store.records[userKey(tu)][month])||{};
-  let html=omSelector()+monthSelector(tu,_store.records);
-  html+=`<div class="intro"><h2>Záznam 1:1 — ${USERS[tu].label}</h2>
+  let html=head+personTiles('record',tu)+monthSelector(tu,_store.records);
+  html+=`<div class="intro"><h2>${esc(USERS[tu].label)}</h2>
     <p><b>Zápis ze schůzky</b> — vyplňuje manažer během / po 1:1. Na rozdíl od Přípravy (kterou si píše podřízený předem) sem patří, co reálně padlo: kontrola úkolů z minula a poznámky k jednotlivým tématům. Slouží jako trvalá paměť — příští měsíc se sem vrátíš. Měsíc: <b>${month}</b>.<br><span style="opacity:.85">Citlivé hodnocení lidí (People Review) sem nepatří — to zůstává v Excelu.</span></p></div>`;
   // Held-meeting flag — one click marks the 1:1 as done for the heat map, independent of notes.
   const held=saved._held;
@@ -1185,6 +1204,34 @@ function toggleHeld(personName){
 }
 
 // ─── TASKS TAB ───────────────────────────────────────────────────────
+// Dlaždice osob pro Přípravu a Záznam. Stav na dlaždici říká, co je u koho
+// za tento měsíc hotové, aby se nemuselo proklikávat jeden po druhém.
+function personTiles(kind,sel){
+  const mk=curMonth();
+  const tiles=subordinates().filter(u=>QSETS[USERS[u].roleType]).map(u=>{
+    let st,cls;
+    if(kind==='prep'){
+      const ok=prepFilled(u,mk);
+      st=ok?'✓ vyplněno':'chybí'; cls=ok?'ok':'warn';
+    }else{
+      const r=(_store.records[userKey(u)]||{})[mk]||{};
+      const filled=recordFilled(u,mk);
+      if(r._held||filled){ st=filled?'✓ zapsáno':'⚠ prázdný'; cls=filled?'ok':'warn'; }
+      else if(r._noF2F){ st='⊘ neproběhlo F2F'; cls='warn'; }
+      else if(r._planned){ st='📅 '+dm(r._planned); cls='navy'; }
+      else { st='bez termínu'; cls='muted'; }
+    }
+    return `<button class="tk-tile ${sel===u?'on':''}" onclick="tkPick('${escA(u)}')">
+      <span class="tk-nm"><b>${esc(shortName(u))}</b><i>${esc(deptOf(u))}</i></span>
+      <span class="tk-st tk-st-${cls}">${st}</span></button>`;
+  }).join('');
+  return `<div class="tk-tiles pt-tiles">${tiles}</div>`;
+}
+// Prázdný stav, dokud si OM nevybere osobu.
+function pickPrompt(what){
+  return `<div class="panel"><div class="panel-body"><div class="empty">Vyber osobu nahoře — zobrazí se ${what}.</div></div></div>`;
+}
+
 // Výběr osoby na kartě Úkoly — prázdný řetězec znamená „moje úkoly".
 function tkPick(u){ _viewUser=u||null; renderActive(); }
 // Dlaždice osoby: jméno, role a stav jejích otevřených úkolů.
