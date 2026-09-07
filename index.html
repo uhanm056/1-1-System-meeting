@@ -345,6 +345,37 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
   .dn-day.free{justify-content:flex-start}
   .dn-acts.two{grid-auto-flow:row;grid-template-columns:1fr;grid-template-rows:none!important}
 }
+/* ── Přehled: přepínací dlaždice ── */
+.ov-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.ov-tile{display:flex;flex-direction:column;gap:3px;text-align:left;font-family:inherit;cursor:pointer;
+  background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:14px 18px;
+  box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s,background .15s}
+.ov-tile:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
+.ov-tile.on{border-color:var(--dark);background:linear-gradient(135deg,#1F3864,#2E5090);box-shadow:var(--shadow-md)}
+.ov-num{display:flex;align-items:baseline;gap:7px;font-family:'IBM Plex Mono',monospace}
+.ov-num b{font-size:32px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.ov-num i{font-size:14px;font-style:normal;color:var(--muted);font-weight:600}
+.ov-n-red{color:#B0270A}.ov-n-ok{color:#0B6B47}.ov-n-navy{color:var(--dark)}.ov-n-muted{color:var(--text-secondary)}
+.ov-t{font-size:14.5px;font-weight:700;color:var(--dark);line-height:1.3}
+.ov-h{font-size:11.5px;color:var(--muted);line-height:1.45}
+.ov-tile.on .ov-num b,.ov-tile.on .ov-t{color:#fff}
+.ov-tile.on .ov-num i,.ov-tile.on .ov-h{color:rgba(255,255,255,.72)}
+.ov-body{display:flex;flex-direction:column}
+.ov-body > .panel{margin-bottom:0}
+/* heat mapa má na širokém displeji vyplnit šířku, ne sedět v 640px */
+.wrap.wide .hm-table{width:100%;min-width:760px}
+.wrap.wide .hm-corner,.wrap.wide .hm-name,.wrap.wide .hm-gapcell,.wrap.wide .hm-gaph{width:1%;white-space:nowrap}
+.wrap.wide .hm-cell{width:auto;height:28px;line-height:28px;font-size:10.5px}
+.wrap.wide .hm-mh{width:auto;font-size:12px;padding:4px 0}
+.wrap.wide .hm-name{font-size:13px;padding:4px 12px 4px 2px}
+.wrap.wide .hm-lg{vertical-align:middle}
+@media(min-width:1440px){
+  .ov-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ov-num b{font-size:38px}
+  .ov-t{font-size:16px}
+  .ov-h{font-size:12.5px}
+  .wrap.wide .hm-cell{height:32px;line-height:32px;font-size:11px}
+}
 /* ONE-PAGER: stránka sama neroluje, přeplněné panely rolují uvnitř sebe. */
 @media(min-width:1440px) and (min-height:700px){
   #app.onepage{display:flex!important;flex-direction:column;height:100dvh;overflow:hidden}
@@ -376,6 +407,9 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
   #app.onepage .dn-day{padding:10px;gap:8px}
   #app.onepage .dn-slot{padding:9px 11px;gap:5px}
   #app.onepage .dn-cap{margin-top:7px}
+  #app.onepage .ov-body{flex:1 1 auto;min-height:0}
+  #app.onepage .ov-body > .panel{flex:0 1 auto;min-height:0}
+  #app.onepage .ov-tiles{flex:0 0 auto}
   #app.onepage .dn .panel-body{min-height:0;overflow-y:auto;overscroll-behavior:contain}
   #app.onepage .dn .panel-body::-webkit-scrollbar{width:9px}
   #app.onepage .dn .panel-body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px}
@@ -935,8 +969,9 @@ function autoGrow(el){ el.style.height='auto'; el.style.height=(el.scrollHeight+
 function renderActive(){
   if(!currentUser) return;
   const c=document.getElementById('content');
-  c.classList.toggle('wide',activeTab==='dnes');
-  document.getElementById('app').classList.toggle('onepage',activeTab==='dnes');
+  const dash=(activeTab==='dnes'||activeTab==='overview');
+  c.classList.toggle('wide',dash);
+  document.getElementById('app').classList.toggle('onepage',dash);
   if(activeTab==='dnes') c.innerHTML=renderDnes();
   else if(activeTab==='prep') c.innerHTML=renderPrep();
   else if(activeTab==='record') c.innerHTML=renderRecord();
@@ -1186,16 +1221,46 @@ function updTask(i,k,v){ const tu=targetUser(); const list=tasksOf(tu); if(!list
 function delTask(i){ const tu=targetUser(); const list=tasksOf(tu); list.splice(i,1); persist(`tasks/${userKey(tu)}`,list); }
 
 // ─── OVERVIEW (OM only) ──────────────────────────────────────────────
+// Přehled je rozdělený na tři sekce; dlaždice nahoře přepínají, která je vidět,
+// takže na obrazovce je vždy jen jedna a neroluje se přes celou stránku.
+let _ovSection='heat';
+function ovShow(sec){ _ovSection=sec; renderActive(); }
+function ovTile(id,num,sub,title,hint,sev){
+  return `<button class="ov-tile ${_ovSection===id?'on':''}" onclick="ovShow('${id}')">
+    <span class="ov-num"><b class="ov-n-${sev}">${num}</b>${sub?`<i>${sub}</i>`:''}</span>
+    <span class="ov-t">${title}</span>
+    <span class="ov-h">${hint}</span></button>`;
+}
 function renderOverview(){
   if(!IS_OM(currentUser)) return `<div class="empty">Nedostupné.</div>`;
-  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
-  let html=`<div class="intro"><h2>Přehled — plán a stav 1:1</h2>
-    <p>Nahoře heat mapa (celkový obraz), dole co vyžaduje pozornost tento týden.</p></div>`;
+  const subs=subordinates();
+  const mk=curMonth(), year=new Date().getFullYear();
 
-  html+=heatmapHTML(subs);
-  html+=invitesHTML(subs);
-  html+=attentionHTML(subs);
-  return html;
+  const heldYear=subs.reduce((tot,u)=>{
+    const rec=_store.records[userKey(u)]||{};
+    return tot+Object.keys(rec).filter(k=>/^\d{4}-\d{2}$/.test(k)&&k.startsWith(String(year))
+      &&(rec[k]._held||recordFilled(u,k))).length;
+  },0);
+  const sent=subs.filter(u=>invitedIn(u,mk)).length;
+  const attn=attentionCount(subs);
+
+  const body = _ovSection==='invites' ? invitesHTML(subs)
+             : _ovSection==='attention' ? attentionHTML(subs)
+             : heatmapHTML(subs);
+
+  return `<div class="dn ov">
+    <div class="dn-title"><h2>Přehled — plán a stav 1:1</h2>
+      <span class="sub">${esc(USERS[currentUser].label)} · ${subs.length} podřízených</span></div>
+    <div class="ov-tiles">
+      ${ovTile('heat',heldYear,'proběhlo letos','Heat mapa '+year,
+        'Celý rok po měsících. Klik na buňku plánuje nebo otevře menu.', heldYear?'ok':'muted')}
+      ${ovTile('invites',sent,'z '+subs.length+' odesláno','Pozvánky na '+monthLabel(mk),
+        'Komu už pozvánka odešla a komu ještě ne.', sent===subs.length?'ok':'navy')}
+      ${ovTile('attention',attn,attn?'položek':'vše v pořádku','Vyžaduje pozornost',
+        'Propadlá 1:1, chybějící záznamy, uvázlé úkoly.', attn?'red':'ok')}
+    </div>
+    <div class="ov-body">${body}</div>
+  </div>`;
 }
 
 // Byla pro daný měsíc odeslána pozvánka?
@@ -1241,8 +1306,9 @@ function invitesHTML(subs){
   return html+`</div></div>`;
 }
 
-// Řídící panel: po termínu / propadlé + otevřené úkoly + 3+ měsíce bez 1:1
-function attentionHTML(subs){
+// Data pro panel „Vyžaduje pozornost". Vytažené z attentionHTML, aby dlaždice
+// v Přehledu počítala přesně to, co pak sekce vypíše — jinak se čísla rozejdou.
+function attentionData(subs){
   const today=todayISO();
   const year=new Date().getFullYear();
   const curM=new Date().getMonth()+1;
@@ -1292,7 +1358,16 @@ function attentionHTML(subs){
     if(gap>=3) stale.push({u,gap});
   });
   stale.sort((a,b)=>(b.gap===null?999:b.gap)-(a.gap===null?999:a.gap));
+  return {overdue,openTasks,excused,stale};
+}
+function attentionCount(subs){
+  const d=attentionData(subs);
+  return d.overdue.length+d.openTasks.length+d.excused.length+d.stale.length;
+}
 
+// Řídící panel: po termínu / propadlé + otevřené úkoly + 3+ měsíce bez 1:1
+function attentionHTML(subs){
+  const {overdue,openTasks,excused,stale}=attentionData(subs);
   const dept=u=>(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||'';
 
   let html=`<div class="panel"><div class="panel-head">Vyžaduje pozornost</div><div class="panel-body att-body">`;
