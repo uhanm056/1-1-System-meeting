@@ -408,6 +408,10 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .pt-who{font-size:13px;color:var(--text-secondary);margin:2px 2px 12px}
 .pt-who b{color:var(--dark);font-family:'IBM Plex Mono',monospace}
 .pt-no{color:var(--muted);font-style:italic}
+.q-legacy{background:var(--bg-input);border:1px dashed var(--border-strong);border-radius:9px;padding:9px 12px;margin:0 0 13px}
+.q-legacy-h{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.q-legacy p{font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin:0 0 5px;white-space:pre-wrap}
+.q-legacy p:last-child{margin-bottom:0}
 .pt-form{max-width:1120px}
 /* ── Master–detail: seznam osob vlevo, obsah vpravo ── */
 .md{display:flex;gap:16px;align-items:flex-start}
@@ -786,7 +790,7 @@ function gtext(s,who){
 }
 
 // ─── QUESTION SETS per roleType ──────────────────────────────────────
-const C0=["Follow-up z minulého 1:1",["Jaký byl stav akcí z minulého 1:1?","Co bylo splněno / nesplněno a proč?","Kde nebyl dodržen termín a jaké je nové opatření?"]];
+const C0=["Follow-up z minulého 1:1",["Jaký je stav akcí z minulého 1:1 a kde potřebujeme nové opatření?"]];
 const C1=["Jak hodnotíš poslední měsíc?",["Jak hodnotíš poslední měsíc na základě výsledků a konkrétních faktů?","Co se zlepšilo, co se zhoršilo a proč?"]];
 // KPI kotvy — nápověda per role, zobrazí se pod první otázkou sekce 1.
 const KPI_HINT={
@@ -798,8 +802,8 @@ const KPI_HINT={
   qcoord:"Kvalita: reklamace, interní vady, scrap, containment, uzavírání akcí",
   ci:"CI: úspory, produktivita, realizovaná zlepšení, AVIX, standardizace",
 };
-const C2=["Tým",["Kdo se nejvíc posunul?","Kdo neplní očekávání a co s tím konkrétně uděláš?","Máš nějaký personální problém, který bych měl znát?"]];
-const C4=["Leadership",["Kde jsi tento měsíc musel{a} nastavovat očekávání nebo být důslednější?","Co bylo tvoje nejtěžší rozhodnutí tento měsíc?","Ve které situaci ses zachoval{a} jako lídr, na kterého můžeš být hrdý{á}?"]];
+const C2=["Tým",["Kdo se nejvíc posunul?","Kde v týmu aktuálně nejsou plněná očekávání a co s tím konkrétně uděláš?","Je v týmu personální téma, které může ovlivnit výkon, stabilitu nebo disciplínu?"]];
+const C4=["Leadership",["Kde jsi tento měsíc musel{a} nastavovat očekávání nebo být důslednější?","Co bylo tvoje nejtěžší rozhodnutí tento měsíc?","Ve které situaci jsi převzal{a} odpovědnost a posunul{a} tým správným směrem?"]];
 const C5=["Podpora",["Co potřebuješ ode mě, co opravdu nemůžeš vyřešit sám{a}?","Co bych měl dělat jinak?"]];
 const C6=["Další měsíc",["Jaké jsou tvoje 3 hlavní priority?","Podle čeho poznáme, že byl měsíc úspěšný?"]];
 const SEC3={
@@ -1146,6 +1150,11 @@ function renderPrep(){
       }
       html+=`<textarea class="q-input" id="${id}" ${readOnly?'disabled':''}>${esc(saved[id]||'')}</textarea></div>`;
     });
+    const old=legacyAnswers(saved,si,sec[1].length);
+    if(old.length){
+      html+=`<div class="q-legacy"><span class="q-legacy-h">Z dřívějšího znění otázek</span>`
+        +old.map(t=>`<p>${esc(t)}</p>`).join('')+`</div>`;
+    }
     html+=`</div>`;
   });
   html+=secOpen('Vlastní témata','')+
@@ -1159,10 +1168,13 @@ function renderPrep(){
   return html;
 }
 function savePrep(rt){
-  const tu=targetUser(); const month=curMonth(); const data={};
+  const tu=targetUser(); const month=curMonth();
+  const cur=_store.prep[userKey(tu)]||{};
+  // Vycházíme z uložených dat, ne z prázdna — jinak by uložení smazalo
+  // odpovědi na otázky, které z dotazníku mezitím zmizely.
+  const data=Object.assign({},cur[month]||{});
   QSETS[rt].forEach((sec,si)=>sec[1].forEach((q,qi)=>{const id=`p_${si}_${qi}`;data[id]=val(id);}));
   data.p_own=val('p_own'); data._updated=new Date().toISOString();
-  const cur=_store.prep[userKey(tu)]||{};
   cur[month]=data;
   persist(`prep/${userKey(tu)}`,cur);
   flash('prep-saved');
@@ -1901,6 +1913,14 @@ function recordFilled(person,mk){
   return Object.keys(r).some(k=>!k.startsWith('_') && String(r[k]||'').trim()!=='');
 }
 function subordinates(){ return Object.keys(USERS).filter(u=>!IS_OM(u)); }
+// Odpovědi na otázky, které v aktuálním znění dotazníku už nejsou (sekce se
+// slučovaly). Bez tohohle by zmizely z archivu, i když v databázi zůstávají.
+function legacyAnswers(saved,si,count){
+  return Object.keys(saved||{}).filter(k=>{
+    const m=k.match(/^p_(\d+)_(\d+)$/);
+    return m && +m[1]===si && +m[2]>=count && String(saved[k]||'').trim()!=='';
+  }).sort().map(k=>String(saved[k]).trim());
+}
 function dayWord(n){ return n===1?'den':(n>=2&&n<=4?'dny':'dní'); }
 // "Petr" jen když je v týmu jediný, jinak "Petr H."
 function shortName(u){
