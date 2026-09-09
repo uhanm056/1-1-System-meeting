@@ -533,8 +533,6 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .hm-legend-gap{color:var(--muted)}
 
 .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px}
-.sel-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-.sel-bar select{font-size:13px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-weight:600;color:var(--dark)}
 .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
 .meta-grid .q-input{min-height:auto}
 .hist-card{background:var(--bg-input);border-left:3px solid var(--mid);border-radius:8px;padding:12px 14px;margin-bottom:10px}
@@ -1068,15 +1066,6 @@ let _viewUser=null;
 function targetUser(){
   if(IS_OM(currentUser) && _viewUser) return _viewUser;
   return currentUser;
-}
-function omSelector(){
-  if(!IS_OM(currentUser)) return '';
-  const subs=Object.keys(USERS).filter(u=>!IS_OM(u));
-  return `<div class="sel-bar"><label style="font-size:12px;font-weight:600;color:var(--muted)">Zobrazit podřízeného:</label>
-    <select onchange="_viewUser=this.value;renderActive()">
-      <option value="">— vyber —</option>
-      ${subs.map(u=>`<option value="${u}" ${_viewUser===u?'selected':''}>${USERS[u].label}</option>`).join('')}
-    </select></div>`;
 }
 
 function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
