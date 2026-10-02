@@ -508,7 +508,7 @@ td input:focus,td select:focus{outline:none;border-color:var(--mid);background:#
 .hm-gaph{background:transparent;color:var(--muted);font-weight:600;text-align:center;padding:2px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
 .hm-name{text-align:left;padding:3px 10px 3px 2px;font-weight:600;color:var(--dark);white-space:nowrap;font-size:12px}
 .hm-dept{font-weight:400;color:var(--muted);font-size:10px}
-.hm-cell{position:relative;width:34px;height:22px;border-radius:4px;text-align:center;font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:#fff;vertical-align:middle;line-height:22px}
+.hm-cell{position:relative;width:34px;height:22px;border-radius:4px;text-align:center;font-size:9px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:#fff;vertical-align:middle;line-height:22px;overflow:hidden}
 .hm-done{background:#22A06B}
 .hm-planned{background:#3B82F6}
 .hm-missed{background:#E5484D}
@@ -665,6 +665,7 @@ td input[type=date]{min-width:128px}
 
 
 /* ═══ Neproběhlo F2F ═══ */
+.hm-txt{position:absolute;inset:0;padding:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hm-excused{background:repeating-linear-gradient(45deg,#E8B24A,#E8B24A 4px,#D69A2E 4px,#D69A2E 8px);color:#fff;font-size:11px}
 .hm-excused-lg{background:repeating-linear-gradient(45deg,#E8B24A,#E8B24A 3px,#D69A2E 3px,#D69A2E 6px)}
 .nof2f-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#F6F8FB;border:1px dashed var(--border-strong);border-radius:10px;padding:10px 14px;margin:-6px 0 16px;flex-wrap:wrap}
@@ -768,7 +769,7 @@ const USERS = {
   "Martina Mlejnková":  { role:"coord", roleType:"coord", g:"f", label:"Martina Mlejnková (Koordinátor)" },
   "Bohuš Móri":         { role:"coord", roleType:"coord", g:"m", label:"Bohuš Móri (Koordinátor)" },
   "Roman Zúbek":        { role:"qm",    roleType:"qm",    g:"m", label:"Roman Zúbek (Quality Manager)" },
-  "Martin Slabý":       { role:"qcoord",roleType:"qcoord",g:"m", label:"Martin Slabý (Quality Coordinator)" },
+  "Martin Slabý":       { role:"talent",roleType:"talent",g:"m", label:"Martin Slabý (Talent — Kvalita)" },
   "Hana Škodová":       { role:"ci",    roleType:"ci",    g:"f", label:"Hana Škodová (CI Professional)" },
   "Petr Holas":         { role:"talent",roleType:"talent",g:"m", label:"Petr Holas (Talent — Logistika)" },
   "František Kutiš":     { role:"talent",roleType:"talent",g:"m", label:"František Kutiš (Talent — Logistika)" },
@@ -865,6 +866,16 @@ function secOpen(title,num){
   return `<div class="sec sec-${m.c||'blue'}"><div class="sec-head">
     <div class="sec-ic"><svg viewBox="0 0 24 24">${svg}</svg></div>
     <div class="sec-title">${num?`<span class="sec-num">${num}</span>`:''}${title}</div></div>`;
+}
+// Kdo přešel do jiné skupiny. Měsíce do uvedeného data se zobrazují původní
+// sadou otázek — jinak by se starý záznam ukázal pod úplně jinými otázkami.
+const RT_BEFORE = { "Martin Slabý": { until:"2026-09", type:"qcoord" } };
+// Sada otázek pro daný měsíc: uložená u záznamu > historie přesunu > dnešní role.
+function rtFor(person,monthKey,saved){
+  if(saved && saved._rt && QSETS[saved._rt]) return saved._rt;
+  const h=RT_BEFORE[person];
+  if(h && monthKey && monthKey<=h.until && QSETS[h.type]) return h.type;
+  return USERS[person].roleType;
 }
 const ROLE_LABEL = {log:"Logistics Manager",eng:"Engineering Manager",pm:"Production Manager",coord:"Koordinátor výroby",qm:"Quality Manager",qcoord:"Quality Coordinator",ci:"CI Professional",talent:"Talent (rozvojové 1:1)"};
 
@@ -1102,10 +1113,11 @@ function renderPrep(){
     +(isOM?monthBar(_store.prep):'');
   if(isOM && !tu) return head+`<div class="md">`+personRail('prep',null)
     +`<section class="md-detail">${pickPrompt('jeho příprava')}</section></div>`;
-  const rt=USERS[tu].roleType;
+  const monthSel=isOM?selMonth():viewMonthFor(tu,_store.prep);
+  const rt=rtFor(tu,monthSel,(_store.prep[userKey(tu)]||{})[monthSel]);
   if(!QSETS[rt]) return head+`<div class="md">`+personRail('prep',tu)
     +`<section class="md-detail"><div class="panel"><div class="panel-body"><div class="empty">Pro tuto roli není definovaná příprava.</div></div></div></section></div>`;
-  const month=isOM?selMonth():viewMonthFor(tu,_store.prep);
+  const month=monthSel;
   const isArchive=month!==curMonth();
   const saved=(_store.prep[userKey(tu)]&&_store.prep[userKey(tu)][month])||{};
   const readOnly=(IS_OM(currentUser)&&tu!==currentUser)||isArchive;
@@ -1139,7 +1151,8 @@ function renderPrep(){
       }
       html+=`<textarea class="q-input" id="${id}" ${readOnly?'disabled':''}>${esc(saved[id]||'')}</textarea></div>`;
     });
-    const old=legacyAnswers(saved,si,sec[1].length);
+    let old=legacyAnswers(saved,si,sec[1].length);
+    if(si===QSETS[rt].length-1) old=old.concat(orphanSections(saved,QSETS[rt].length));
     if(old.length){
       html+=`<div class="q-legacy"><span class="q-legacy-h">Z dřívějšího znění otázek</span>`
         +old.map(t=>`<p>${esc(t)}</p>`).join('')+`</div>`;
@@ -1163,7 +1176,7 @@ function savePrep(rt){
   // odpovědi na otázky, které z dotazníku mezitím zmizely.
   const data=Object.assign({},cur[month]||{});
   QSETS[rt].forEach((sec,si)=>sec[1].forEach((q,qi)=>{const id=`p_${si}_${qi}`;data[id]=val(id);}));
-  data.p_own=val('p_own'); data._updated=new Date().toISOString();
+  data.p_own=val('p_own'); data._updated=new Date().toISOString(); data._rt=rt;
   cur[month]=data;
   persist(`prep/${userKey(tu)}`,cur);
   flash('prep-saved');
@@ -1179,7 +1192,7 @@ function renderRecord(){
   // Bez vybrané osoby dřív spadl QSETS[rt].forEach — OM nemá sadu otázek.
   if(!tu) return head+`<div class="md">`+personRail('record',null)
     +`<section class="md-detail">${pickPrompt('jeho záznam')}</section></div>`;
-  const rt=USERS[tu].roleType;
+  const rt=rtFor(tu,selMonth(),(_store.records[userKey(tu)]||{})[selMonth()]);
   if(!QSETS[rt]) return head+`<div class="md">`+personRail('record',tu)
     +`<section class="md-detail"><div class="panel"><div class="panel-body"><div class="empty">Pro tuto roli není definovaný záznam.</div></div></div></section></div>`;
   const month=selMonth();
@@ -1228,7 +1241,7 @@ function saveRecord(rt){
   const prev=(_store.records[userKey(tu)]&&_store.records[userKey(tu)][month])||{};
   const data={r_carry:val('r_carry')};
   QSETS[rt].forEach((sec,si)=>data['r_'+si]=val('r_'+si));
-  data._updated=new Date().toISOString(); data._by=currentUser;
+  data._updated=new Date().toISOString(); data._by=currentUser; data._rt=rt;
   // saving notes implies the meeting happened → keep/auto-set held date
   data._held = prev._held || todayISO();
   const cur=_store.records[userKey(tu)]||{}; cur[month]=data;
@@ -1814,7 +1827,7 @@ function heatmapHTML(subs){
         let inner='';
         let tip=`${MN[i]} ${year}`;
         if(st.state==='done'){ cls+=' hm-done'; inner=st.date?dm(st.date):'✓'; tip+=` — proběhlo${st.date?' '+fmtDate(st.date):''}`; }
-        else if(st.state==='excused'){ cls+=' hm-excused'; inner='⊘'; tip+=` — neproběhlo F2F: ${st.reason}`; }
+        else if(st.state==='excused'){ cls+=' hm-excused'; inner=`<span class="hm-txt">⊘ ${esc(st.reason||'')}</span>`; tip+=` — neproběhlo F2F: ${st.reason}`; }
         else if(st.state==='missed'){ cls+=' hm-missed'; inner='✗'; tip+=` — neprovedeno v čas${st.date?' (plán '+fmtDate(st.date)+')':''}`; }
         else if(st.state==='planned'){ cls+=' hm-planned'; inner=st.date?dm(st.date):'📅'; tip+=` — naplánováno${st.date?' na '+fmtDate(st.date):''}`; }
         else { cls+=' hm-miss'; tip+=' — bez 1:1 (klikni pro naplánování)'; }
@@ -1904,6 +1917,13 @@ function recordFilled(person,mk){
 function subordinates(){ return Object.keys(USERS).filter(u=>!IS_OM(u)); }
 // Odpovědi na otázky, které v aktuálním znění dotazníku už nejsou (sekce se
 // slučovaly). Bez tohohle by zmizely z archivu, i když v databázi zůstávají.
+// Odpovědi ze sekcí, které v aktuální sadě otázek vůbec nejsou.
+function orphanSections(saved,sectionCount){
+  return Object.keys(saved||{}).filter(k=>{
+    const m=k.match(/^p_(\d+)_(\d+)$/);
+    return m && +m[1]>=sectionCount && String(saved[k]||'').trim()!=='';
+  }).sort().map(k=>String(saved[k]).trim());
+}
 function legacyAnswers(saved,si,count){
   return Object.keys(saved||{}).filter(k=>{
     const m=k.match(/^p_(\d+)_(\d+)$/);
