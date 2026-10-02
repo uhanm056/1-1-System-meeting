@@ -769,7 +769,7 @@ const USERS = {
   "Martina Mlejnková":  { role:"coord", roleType:"coord", g:"f", label:"Martina Mlejnková (Koordinátor)" },
   "Bohuš Móri":         { role:"coord", roleType:"coord", g:"m", label:"Bohuš Móri (Koordinátor)" },
   "Roman Zúbek":        { role:"qm",    roleType:"qm",    g:"m", label:"Roman Zúbek (Quality Manager)" },
-  "Martin Slabý":       { role:"talent",roleType:"talent",g:"m", label:"Martin Slabý (Talent — Kvalita)" },
+  "Martin Slabý":       { role:"talent",roleType:"talent",g:"m", label:"Martin Slabý (Quality Coordinator)" },
   "Hana Škodová":       { role:"ci",    roleType:"ci",    g:"f", label:"Hana Škodová (CI Professional)" },
   "Petr Holas":         { role:"talent",roleType:"talent",g:"m", label:"Petr Holas (Talent — Logistika)" },
   "František Kutiš":     { role:"talent",roleType:"talent",g:"m", label:"František Kutiš (Talent — Logistika)" },
@@ -1504,7 +1504,7 @@ function invitedIn(person,monthKey){
 // Panel: komu už pozvánka na tento měsíc odešla a komu ještě ne.
 function invitesHTML(subs){
   const mk=curMonth();
-  const dept=u=>(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||'';
+  const dept=deptOf;
   const sent=[], todo=[];
   subs.forEach(u=>{
     const rec=(_store.records[userKey(u)]||{})[mk]||{};
@@ -1601,7 +1601,7 @@ function attentionCount(subs){
 // Řídící panel: po termínu / propadlé + otevřené úkoly + 3+ měsíce bez 1:1
 function attentionHTML(subs){
   const {overdue,openTasks,excused,stale}=attentionData(subs);
-  const dept=u=>(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||'';
+  const dept=deptOf;
 
   let html=`<div class="panel"><div class="panel-head">Vyžaduje pozornost</div><div class="panel-body att-body">`;
 
@@ -1843,7 +1843,7 @@ function heatmapHTML(subs){
       else if(gap<=2) gapBadge=`<span class="hm-gap hm-gap-warn">${gap} měs.</span>`;
       else gapBadge=`<span class="hm-gap hm-gap-bad">${gap} měs.</span>`;
       return `<tr>
-        <td class="hm-name">${u.split(' ')[0]} <span class="hm-dept">${(USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||''}</span>
+        <td class="hm-name">${u.split(' ')[0]} <span class="hm-dept">${esc(deptOf(u))}</span>
           <button class="hm-mail ${invitedIn(u,curKey)?'hm-mail-on':''}" title="${invitedIn(u,curKey)?'Pozvánka na tento měsíc už odeslána — poslat znovu':'Poslat pozvánku na 1:1 e-mailem'}" onclick="event.stopPropagation();openInviteModal('${escA(u)}','${curKey}')">✉</button></td>
         ${cells}
         <td class="hm-gapcell">${gapBadge}</td>
@@ -1937,7 +1937,18 @@ function shortName(u){
   const dupes=Object.keys(USERS).filter(x=>x!==u && x.split(' ')[0]===first).length;
   return (dupes&&parts[1])?`${first} ${parts[1][0]}.`:first;
 }
-function deptOf(u){ return (USERS[u].label.match(/—\s*(.+?)\)/)||[])[1]||ROLE_LABEL[USERS[u].roleType]||''; }
+function deptOf(u){
+  const l=USERS[u].label;
+  const dash=l.match(/—\s*(.+?)\)/);
+  if(dash) return dash[1];                 // talent s oblastí: "(Talent — Logistika)"
+  // Talent bez oblasti má v popisku svou skutečnou funkci — ta je užitečnější
+  // než obecné ROLE_LABEL "Talent (rozvojové 1:1)".
+  if(USERS[u].roleType==='talent'){
+    const par=l.match(/\(([^)]+)\)/);
+    if(par) return par[1];
+  }
+  return ROLE_LABEL[USERS[u].roleType]||'';
+}
 // Přepnutí na jiný tab s předvybranou osobou / měsícem.
 function goTo(tab,person,month){
   if(person) _viewUser=person;
